@@ -5,17 +5,6 @@ function context(){
  const c={document:{querySelector:()=>({addEventListener(){}}),addEventListener(){}},window:{addEventListener(){},matchMedia:()=>({addEventListener(){}})}};
  vm.createContext(c);let source=fs.readFileSync(require.resolve('../dist/app.js'),'utf8');source=source.slice(0,source.lastIndexOf('restoreSession();'));vm.runInContext(source,c);return c;
 }
-test('추천 이유는 다른 최종 후보의 유효값만 비교하고 우선순위, 실제 0건, 근소한 차이를 구분한다',()=>{
- const c=context();
- const make=(id,rent,deposit,count,minutes)=>({id,rentEvidence:{row:{medianRent:rent,medianDeposit:deposit},count,analyzedCount:20},neighborhood:{count:minutes===null?0:2,median:minutes}});
- c.rows=[make('a',50,1000,0,20),make('b',51,5000,10,40),make('c',52,null,10,null)];
- const result=vm.runInContext("recommendationReasons(rows[0],rows,{priorityOrder:['commute','housing']})",c);
- assert.equal(result.advantages.length,2);
- assert.match(result.advantages[0],/이동시간/);
- assert.match(result.advantages[1],/보증금/);
- assert.match(result.disadvantages[0],/거래 표본 0건/);
- assert.equal(vm.runInContext("recommendationReasons(rows[0],[rows[0]],{}).advantages.length",c),0);
-});
 test('input has exactly three priority checkboxes and legacy migration preserves housing values',()=>{
  const c=context();
  vm.runInContext(`state.page='housing';state.housing=normalizeHousing({...state.housing,deposit:'2000',monthly:'70',destination:'서울역',mode:'walk',priority:'transport',priorities:['budget','access','culture']});`,c);

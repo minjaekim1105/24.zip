@@ -91,25 +91,34 @@ window.realMaps = (() => {
           const [lat,lng]=positions[district.id];
           const point=new maps.LatLng(lat,lng);
           bounds.extend(point);
-          const focused=options.focused===district.id;
-          const compared=(options.compared??[]).includes(district.id);
           const root=document.createElement('div');
           root.className='district-map-anchor';
           const dot=document.createElement('button');
           dot.type='button';dot.className='district-coordinate-dot';
-          dot.setAttribute('aria-label',district.name+(compared?' · 비교 선택':''));
+
           const line=document.createElement('span');line.className='district-label-line';
           const label=document.createElement('button');label.type='button';
           label.className='district-map-label';
-          label.textContent=(compared?'✓ ':'')+district.name+(district.total==null?' · 미평가':' '+district.total.toFixed(1));
-          label.setAttribute('aria-pressed',String(focused));
-          root.classList.toggle('is-focused',focused);
-          root.classList.toggle('is-compared',compared);
           for(const button of [dot,label]) button.addEventListener('click',()=>options.onSelect(district.id));
           root.append(line,dot,label);
-          new maps.CustomOverlay({map,position:point,content:root,xAnchor:0,yAnchor:0,zIndex:focused?30:compared?20:10});
-          labels.push({point,root,label,line,priority:focused?2:compared?1:0});
+          const overlay=new maps.CustomOverlay({map,position:point,content:root,xAnchor:0,yAnchor:0});
+          labels.push({id:district.id,point,root,label,dot,line,overlay,priority:0});
         }
+        node.updateLabels=()=>{
+          for(const item of labels){
+            const d=options.districts.find(d=>d.id===item.id);
+            const focused=options.focused===d.id, compared=options.compared.includes(d.id);
+            item.priority=focused?2:compared?1:0;
+            item.overlay.setZIndex(10+10*item.priority);
+            item.root.classList.toggle('is-focused',focused);
+            item.root.classList.toggle('is-compared',compared);
+            item.label.textContent=d.name+(d.total==null?' · 미평가':' '+d.total.toFixed(1));
+            item.label.setAttribute('aria-pressed',String(focused));
+            item.dot.setAttribute('aria-label',d.name+(compared?' · 비교 선택':''));
+          }
+          arrange();
+        };
+        node.updateLabels();
         function arrange() {
           if(!node.isConnected)return;
           const projection=map.getProjection();

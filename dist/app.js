@@ -202,7 +202,7 @@ const state = {
   page:'home', housing:{routeEnabled:true,deposit:'', monthly:'', trip:'', destination:'', destinationCoords:null, destinationDetails:null, mode:'transit', maxMinutes:'60', priorities:[...criterionKeys], priority:''},
   district:null, project:null, answers:{}, comparison:[], mapDistrict:null, result:null
 };
-const names = { home:['01','서비스 소개'], housing:['02','주거 조건'], results:['03','추천 결과'], map:['03','지도 비교'], qualify:['04','자격 정보'], decision:['05','조건 확인 결과'], help:['06','신청 도움'] };
+const names = { home:['01','서비스 소개'], housing:['02','주거 조건'], results:['03','추천 결과'], map:['03','지도 비교'], supportInput:['04','지원 조건'], supportList:['05','복지사업'], qualify:['04','자격 정보'], decision:['05','조건 확인 결과'], help:['06','신청 도움'] };
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const money = (value) => Number(value).toLocaleString('ko-KR') + '만 원';
 const nav = (page, label, secondary = false) => '<button type="button" class="' + (secondary ? 'secondary' : '') + '" data-go="' + page + '">' + label + '</button>';
@@ -642,8 +642,13 @@ function myConditions(h,editable=false){
  return '<section class="my-conditions" aria-label="내 조건"><div class="my-conditions-heading"><h2>내 조건</h2>'+(editable?'<button type="button" class="secondary" data-go="housing">조건 수정</button>':'')+'</div><dl>'+entries.map(([label,value])=>'<div><dt>'+label+'</dt><dd>'+escapeHtml(value)+'</dd></div>').join('')+'</dl><small>월세는 관리비 제외</small></section>';
 }
 function mapConditionsDashboard(h){
- const priority=rankLabels(h).join(' / ')||'미선택';
- return '<section class="my-conditions map-conditions-dashboard" aria-label="내 조건"><div class="my-conditions-heading"><h2>내 조건</h2><button type="button" class="secondary" data-go="housing">조건 수정</button></div><dl class="map-budget-highlights"><div><dt>최대 보증금</dt><dd>'+escapeHtml(money(h.deposit))+'</dd></div><div><dt>최대 월세</dt><dd>'+escapeHtml(money(h.monthly))+'</dd></div></dl><div class="map-destination-line"><span class="map-destination-name"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-8 8-13a8 8 0 1 0-16 0c0 5 8 13 8 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>'+escapeHtml(h.destination||'목적지 없이 추천')+'</span>'+(h.destination?'<span class="map-condition-badge">'+escapeHtml(travelModeLabel(h.mode))+' · 허용 '+escapeHtml(String(h.maxMinutes))+'분</span>':'')+'</div><div class="map-priority-line"><span>추천 우선순위</span><strong class="map-condition-badge">'+escapeHtml(priority)+'</strong></div><small>월세는 관리비 제외</small></section>';
+ const ranks=rankLabels(h);
+ const budget=value=>value==null||value===''?'미선택':escapeHtml(money(value));
+ return `<section class="map-conditions-dashboard" aria-label="내 조건">
+  <div class="map-condition-intro"><h2>${resultIcon('clipboard')}내 조건</h2><small>추천에 사용한 조건</small>${nav('housing','조건 수정',true)}</div>
+  <section><h3>${resultIcon('coins')}예산</h3><dl class="map-budget"><div><dt>최대 보증금</dt><dd>${budget(h.deposit)}</dd></div><div><dt>최대 월세</dt><dd>${budget(h.monthly)}</dd></div></dl><small>월세는 관리비 제외</small></section>
+  <section><h3>${resultIcon('pin')}목적지</h3><strong>${escapeHtml(h.destination||'목적지 없이 추천')}</strong>${h.destination?'<small>'+escapeHtml(travelModeLabel(h.mode)+' · 허용 '+h.maxMinutes+'분')+'</small>':''}</section>
+  <section><h3>${resultIcon('star')}추천 우선순위</h3><div class="map-ranks">${ranks.length?ranks.map(r=>'<span>'+escapeHtml(r)+'</span>').join(''):'미선택'}</div></section></section>`;
 }
 function shortReasons(d) {
   const h = state.housing;
@@ -827,7 +832,7 @@ function resultExplorer(scores,items) {
       (outside&&!state.otherDistrictsOpen?'<p class="collapsed-selection-name">선택한 구 · '+selected.name+'</p>':'')+
       '<div id="other-district-list"'+(state.otherDistrictsOpen?'':' hidden')+'>'+others.map(d=>row(d,null)).join('')+'</div>':'')+
     '<div class="collapsed-selection-slot"></div></aside><div class="result-detail-host">'+
-    (selected?'<div class="selected-result-detail">'+resultCard(selected,top)+'</div>':'<section class="panel"><h2>자치구 상세</h2><p>왼쪽 목록에서 살펴볼 자치구를 선택해 주세요.</p></section>')+
+    (selected?'<div class="selected-result-detail">'+resultCard(selected)+'</div>':'<section class="panel"><h2>자치구 상세</h2><p>왼쪽 목록에서 살펴볼 자치구를 선택해 주세요.</p></section>')+
     '</div></div>';
 }
 function placeResultDetail() {
@@ -844,7 +849,7 @@ function placeResultDetail() {
 window.matchMedia?.('(max-width: 860px)').addEventListener('change',placeResultDetail);
 
 function resultIcon(name) {
-  const paths={bus:'<rect x="4" y="3" width="16" height="17" rx="3"/><path d="M4 11h16M8 7h8M2 7v4m20-4v4M7 20v2m10-2v2M7 15h1m8 0h1"/>',walk:'<circle cx="14" cy="4" r="2"/><path d="m11 8 4 1 3 4 3 1M11 8l-3 5-4 1m7-6-1 8-4 6m4-6 5 2 2 4m-2-13-2 6"/>',map:'<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/>',sliders:'<path d="M3 6h5m4 0h9M3 12h11m4 0h3M3 18h3m4 0h11"/><circle cx="10" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',home:'<path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3z"/>',coins:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 4 16 4 16 0V6M4 12v6c0 4 16 4 16 0v-6"/>',train:'<rect x="5" y="3" width="14" height="16" rx="3"/><path d="M5 11h14M9 3v8M15 3v8M8 22l2-3m6 3-2-3M8 15h1m6 0h1"/>',building:'<path d="M3 21h18M5 21V6h4V3h10v18M9 6v15M12 7h4m-4 4h4m-4 4h4m-4 4h4"/>',star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>'};
+  const paths={clipboard:'<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 11h8m-8 4h6"/>',pin:'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',store:'<path d="M3 10l2-6h14l2 6M4 10v10h16V10M3 10q3 5 6 0 3 5 6 0 3 5 6 0M9 20v-6h6v6"/>',bus:'<rect x="4" y="3" width="16" height="17" rx="3"/><path d="M4 11h16M8 7h8M2 7v4m20-4v4M7 20v2m10-2v2M7 15h1m8 0h1"/>',walk:'<circle cx="14" cy="4" r="2"/><path d="m11 8 4 1 3 4 3 1M11 8l-3 5-4 1m7-6-1 8-4 6m4-6 5 2 2 4m-2-13-2 6"/>',map:'<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/>',sliders:'<path d="M3 6h5m4 0h9M3 12h11m4 0h3M3 18h3m4 0h11"/><circle cx="10" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',home:'<path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3z"/>',coins:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 4 16 4 16 0V6M4 12v6c0 4 16 4 16 0v-6"/>',train:'<rect x="5" y="3" width="14" height="16" rx="3"/><path d="M5 11h14M9 3v8M15 3v8M8 22l2-3m6 3-2-3M8 15h1m6 0h1"/>',building:'<path d="M3 21h18M5 21V6h4V3h10v18M9 6v15M12 7h4m-4 4h4m-4 4h4m-4 4h4"/>',star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>'};
   return '<svg class="result-line-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+paths[name]+'</svg>';
 }
 function resultScoreTiles(d) {
@@ -967,41 +972,10 @@ function fitSummary(d){
   '<button type="button" class="secondary" data-route-query="'+d.id+'" data-route-retry>이동시간 다시 조회</button>':'';
  return '<section class="v3-facts"><table><caption>주거비·이동시간 비교</caption><thead><tr><th scope="col">항목</th><th scope="col">내 조건과 비교</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>'+rentRetry+routeRetry+'</section>';
 }
-function recommendationReasons(d,finalists,housing){
- const advantages=[],disadvantages=[];
- const peers=finalists.filter(other=>other.id!==d.id);
- const order=selectedOrder(housing);
- const metrics=[
-  {group:'housing',label:'월세 중앙값',unit:'만 원',minimum:3,read:r=>r.rentEvidence?.row?.medianRent},
-  {group:'housing',label:'보증금 중앙값',unit:'만 원',minimum:100,read:r=>r.rentEvidence?.row?.medianDeposit},
-  {group:'housing',label:'예산을 충족한 거래 표본',unit:'건',minimum:3,more:true,read:r=>r.rentEvidence?.analyzedCount>0?r.rentEvidence.count:null},
-  {group:'commute',label:'목적지까지 이동시간 중앙값',unit:'분',minimum:5,read:r=>r.neighborhood?.count>=2?r.neighborhood.median:null}
- ];
- const priority=key=>order.includes(key)?order.indexOf(key):order.length;
- const format=value=>value.toLocaleString('ko-KR',{maximumFractionDigits:1});
- for(const metric of metrics.sort((a,b)=>priority(a.group)-priority(b.group))){
-   const value=metric.read(d);
-   const others=peers.map(metric.read).filter(Number.isFinite).sort((a,b)=>a-b);
-   if(!Number.isFinite(value)||!others.length)continue;
-   const reference=(others[Math.floor((others.length-1)/2)]+others[Math.floor(others.length/2)])/2;
-   const delta=value-reference;
-   if(Math.abs(delta)<Math.max(metric.minimum,reference*0.05))continue;
-   const favorable=metric.more?delta>0:delta<0;
-   const direction=metric.more?(delta>0?'많습니다':'적습니다'):metric.group==='commute'?(delta>0?'깁니다':'짧습니다'):(delta>0?'높습니다':'낮습니다');
-   (favorable?advantages:disadvantages).push(metric.label+' '+format(value)+metric.unit+' · 비교 기준 '+format(reference)+metric.unit+'보다 '+format(Math.abs(delta))+metric.unit+' '+direction+'.');
- }
- return {advantages,disadvantages};
-}
-function recommendationNotes(d,finalists){
- if(!finalists.some(other=>other.id===d.id))return '';
- const {advantages,disadvantages}=recommendationReasons(d,finalists,state.housing);
- const list=(title,items)=>'<section><h3>'+title+'</h3>'+(items.length?'<ul>'+items.map(item=>'<li>'+escapeHtml(item)+'</li>').join('')+'</ul>':'<p>비교 가능한 자료에서 뚜렷한 차이가 확인되지 않았어요.</p>')+'</section>';
- return '<div class="recommendation-notes">'+list('내 조건에 맞는 이유',advantages)+list('감수해야 할 점',disadvantages)+'<small>비교 기준은 나머지 최종 추천 지역 중 자료가 있는 곳의 중앙값입니다. 거래 건수는 현재 매물 수와 다릅니다.</small></div>';
-}
-function resultCard(d,finalists=[]){
+function resultCard(d){
  const count=criterionKeys.filter(k=>Number.isFinite(evaluationState(d)[k].score)).length;
  return '<article class="card result-card"><div class="card-head"><h2>'+d.name+'</h2><span class="score"><b>'+(d.total==null?'—':d.total.toFixed(1)+' / 100')+'</b><small>'+(d.weightPolicyPending?'우선순위 선택 필요':count===3?'평가 완료':count?'부분 평가 · 임시':'미평가')+'</small></span></div>'+dashboardC(d)+fitSummary(d)+neighborhoodBudget(d)+
- recommendationNotes(d,finalists)+'<section class="result-supports district-supports"><h3>'+resultIcon('building')+'자치구 주거지원사업</h3>'+resultSupport(d,true)+'</section><section class="result-supports common-supports"><h3>'+resultIcon('building')+'서울시·공통 지원사업</h3>'+resultSupport(d,false)+'</section></article>';
+ '<div class="actions"><button type="button" data-support-district="'+d.id+'">'+d.name+' 복지사업 조건 입력 →</button></div></article>';
 }
 
 
@@ -1019,13 +993,30 @@ function mapCompareAction(d){
  if(state.comparison.length<2)return '<button type="button" data-compare="'+d.id+'">비교 대상에 추가</button>';
  return '<p>비교 대상이 2곳이에요. 교체할 구를 선택해 주세요.</p><div class="actions">'+state.comparison.map(id=>'<button type="button" class="secondary" data-replace="'+id+'" data-with="'+d.id+'">'+districts.find(g=>g.id===id).name+' 교체</button>').join('')+'</div>';
 }
+function mapScore(value){
+ return Number.isFinite(value)?value.toFixed(1)+' <small>/ 100</small>':'<span aria-label="미평가">—</span>';
+}
 function mapRegionSummary(d){
  const e=evaluationState(d);
- return '<aside class="map-region-summary" id="district-detail"><p class="kicker">선택 지역 요약</p><h2>'+d.name+'</h2><strong class="map-region-total">'+(d.total==null?'미평가':d.total.toFixed(1)+' <small>/ 100점</small>')+'</strong><span class="map-evaluation-status">'+(d.total==null?'미평가':d.provisional?'부분 평가 · 임시':'평가 완료')+'</span><dl>'+criterionKeys.map(k=>'<div><dt>'+priorities[k].label+'</dt><dd>'+(e[k].score==null?'미평가':e[k].score.toFixed(1)+' / 100')+'</dd></div>').join('')+'</dl><p class="map-travel-summary">'+escapeHtml(mapTravel(d))+'</p>'+fitSummary(d)+mapCompareAction(d)+'</aside>';
+ const icons={housing:'home',commute:'train',convenience:'store'};
+ const cards=criterionKeys.map(key=>{
+   const {score,details}=e[key];
+   const note=Number.isFinite(score)?'':key==='commute'?routeRange(d):details;
+   return `<section class="map-metric"><h3>${resultIcon(icons[key])}${priorities[key].label}</h3><strong>${mapScore(score)}</strong>
+    ${key==='convenience'&&Number.isFinite(score)?'<progress max="100" value="'+score+'" aria-label="생활 편의시설 점수"></progress>':''}
+    ${note?'<small>'+escapeHtml(note)+'</small>':''}</section>`;
+ }).join('');
+ return `<aside class="map-region-summary" id="district-detail" aria-label="선택 지역 요약"><div class="map-summary-head"><h2>${resultIcon('pin')}${d.name}</h2><div class="map-total"><strong>${mapScore(d.total)}</strong><small>${d.total==null?'미평가':d.provisional?'부분 평가 · 임시':'평가 완료'}</small></div></div>
+ <div class="map-metrics">${cards}</div><details class="map-facts"><summary>주거비·이동시간 비교</summary>${fitSummary(d)}</details>${mapCompareAction(d)}</aside>`;
 }
 function mapComparison(items){
- const rows=[['종합 추천 점수',d=>d.total==null?'미평가':d.total.toFixed(1)+' / 100'],...compareFacts(items[0]).map(([label],i)=>[label,d=>{const [,value,basis]=compareFacts(d)[i];return escapeHtml(value)+'<small>'+escapeHtml(basis)+'</small>';}]),...criterionKeys.map(k=>[priorities[k].label,d=>{const e=evaluationState(d)[k];return (e.score==null?'미평가':e.score.toFixed(1)+' / 100')+(k==='commute'?'<small>'+escapeHtml(mapTravel(d))+'</small>':'');}])];
- return '<section class="map-score-comparison"><h2>추천 지역 비교</h2><div class="map-compare-table"><div class="compare-heading"><strong>평가 항목</strong>'+items.map(d=>'<strong>'+d.name+'</strong>').join('')+'</div>'+rows.map(([label,value])=>'<div class="compare-data-row"><h3>'+label+'</h3>'+items.map(d=>'<div><strong>'+value(d)+'</strong></div>').join('')+'</div>').join('')+'</div></section>';
+ const rows=[['종합 추천 점수',d=>mapScore(d.total)],...compareFacts(items[0]).map(([label],i)=>[label,d=>{const [,value,basis]=compareFacts(d)[i];return escapeHtml(value)+'<small>'+escapeHtml(basis)+'</small>';}]),
+ ...criterionKeys.map(k=>[priorities[k].label,d=>{const e=evaluationState(d)[k];return mapScore(e.score)+'<small>'+escapeHtml((k==='commute'?mapTravel(d):e.score==null?e.details:e.dataSource)||'')+'</small>';}])];
+ return `<section class="map-score-comparison"><h2>추천 지역 비교</h2><div class="map-table-scroll" tabindex="0" role="region" aria-label="추천 지역 비교 표"><table><thead><tr><th scope="col">평가 항목</th>${items.map(d=>'<th scope="col">'+d.name+'</th>').join('')}</tr></thead><tbody>${rows.map(([label,value])=>'<tr><th scope="row">'+label+'</th>'+items.map(d=>'<td>'+value(d)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></section>`;
+}
+function mapChip(d){
+ const picked=state.comparison.includes(d.id);
+ return `<span class="map-chip"><button type="button" class="secondary" data-map-pick="${d.id}" aria-pressed="${picked}">${picked?'✓ ':''}${d.name}</button>${picked?'<button type="button" data-remove="'+d.id+'" aria-label="'+d.name+' 비교 선택 해제">×</button>':''}</span>`;
 }
 function mapExtraDetails(d){return '<section class="map-extra-details"><h2>'+d.name+' 상세 정보</h2>'+departureDetails(d)+'<details><summary>점수 근거 보기</summary>'+criterionKeys.map(k=>'<h3>'+priorities[k].label+'</h3><p>'+escapeHtml(evaluationState(d)[k].details)+'</p>').join('')+'</details><section class="result-supports district-supports"><h3>자치구 주거지원사업</h3>'+resultSupport(d,true)+'</section><section class="result-supports common-supports"><h3>서울시·공통 지원사업</h3>'+resultSupport(d,false)+'</section></section>';}
 
@@ -1090,10 +1081,35 @@ const views = {
   map:() => {
     const scores=mapViewScores=ranked(),focused=scores.find(d=>d.id===state.mapDistrict)??recommended(scores)[0]??scores[0];
     const compared=state.comparison.map(id=>scores.find(d=>d.id===id)).filter(Boolean);
-    return '<div class="map-comparison-page">'+heading('지도에서 동네 비교','지도에서 자치구를 골라 최대 두 곳을 비교해 보세요.')+myConditions(state.housing,true)+
+    return '<div class="map-comparison-page">'+heading('지도에서 동네 비교','지도에서 여러 자치구를 선택해 주거 환경을 비교해 보세요.')+myConditions(state.housing,true)+
       '<div data-map-toolbar></div><div class="map-overview-grid"><div class="map-canvas-column"><div id="comparison-kakao-map" class="real-map" aria-label="서울 자치구 지도"></div></div>'+mapRegionSummary(focused)+'</div><p class="map-status" role="status"></p>'+
-      '<section class="map-selection"><h2>비교 대상 '+compared.length+'/2</h2><p class="muted">지도 마커는 상세 확인, 아래 구 이름은 비교 대상 선택이에요.</p><div class="district-pick-list" aria-label="비교 자치구 선택">'+scores.map(d=>'<button type="button" class="secondary'+(state.comparison.includes(d.id)?' is-compared':'')+'" data-map-pick="'+d.id+'" aria-pressed="'+state.comparison.includes(d.id)+'">'+(state.comparison.includes(d.id)?'✓ ':'')+d.name+'</button>').join('')+'</div><div class="selected-districts">'+compared.map(d=>'<span>'+d.name+' <button type="button" class="secondary" data-remove="'+d.id+'" aria-label="'+d.name+' 비교 해제">해제</button></span>').join('')+'</div>'+(compared.length<2?'<p>비교할 자치구를 '+(compared.length?'한 곳 더':'최대 두 곳')+' 선택해 주세요.</p>':'')+'</section>'+
-      (compared.length===2?mapComparison(compared):'')+mapExtraDetails(focused)+'<div class="actions map-return">'+nav('results','추천 결과로 돌아가기')+'</div></div>';
+      '<div class="map-lower"><section class="map-selection"><h2>비교 대상 '+compared.length+'구</h2><p>자치구 두 곳을 선택하면 아래에서 비교할 수 있어요.</p><div class="district-pick-list" aria-label="비교 자치구 선택">'+scores.map(mapChip).join('')+'</div></section>'+
+      (compared.length===2?mapComparison(compared):'')+mapExtraDetails(focused)+'<div class="actions map-return">'+nav('results','추천 결과로 돌아가기')+'</div></div></div>';
+  },
+  supportInput:() => {
+    const {district}=selected();
+    const answers=state.answers[district.id] || {};
+    const blank=['','선택하지 않음'];
+    return heading(district.name+' 복지사업 조건 입력','아는 항목만 입력해 주세요. 만 나이를 입력하면 복지로 조회에 사용합니다.')+
+      '<form class="panel narrow" id="support-search-form">'+numberField('age','만 나이',answers.age,false,'120')+
+      selectField('household','1인가구 여부',answers.household,[blank,['yes','1인가구'],['no','다인 가구']])+
+      selectField('owner','무주택 여부',answers.owner,[blank,['yes','무주택'],['no','주택 소유']])+
+      numberField('income','본인 연소득 (만원)',answers.income)+
+      '<div class="actions"><button>복지사업 보기 →</button></div></form>';
+  },
+  supportList:() => {
+    const {district}=selected();
+    const answers=state.answers[district.id] || {};
+    const notices=answers.household==='no'?[]:window.localHousingSupport?.forDistrict(district.name) || [];
+    const items=notices.map(n=>supportItem(n.title,n.terms,n.url,n.method));
+    for(const [,project] of projectEntries(district)){
+      if(!project.url || project.status==='접수 종료')continue;
+      const result=assess(project,answers);
+      if(result.status!=='fail')items.push(supportItem(project.name,project.benefit,project.url,project.status));
+    }
+    return heading(district.name+' 복지사업','세부 자격과 접수 기간은 각 사업의 공식 안내에서 확인해 주세요.')+
+      '<div class="support-list" id="support-programs">'+items.join('')+'</div><div class="actions">'+
+      nav('supportInput','조건 수정',true)+nav('results','추천 결과로 돌아가기')+'</div>';
   },
   qualify:() => {
     const { district, project } = selected();
@@ -1174,43 +1190,36 @@ function restoreSession(){
     }
     if(!state.housing.priority&&['results','map'].includes(state.page)){state.housing.priorityNeedsReselect=true;state.page='housing';}
     if(['qualify','decision','help'].includes(state.page)&&(!projects[state.project]||!districts.some(d=>d.id===state.district)))state.page='results';
+    if(['supportInput','supportList'].includes(state.page)){
+      state.page=districts.some(d=>d.id===state.district)?'supportInput':'results';
+    }
     if(state.page==='decision'&&!state.result)state.page='qualify';
   }catch{}
 }
+function supportItem(title,description,url,note){
+  return '<article class="panel narrow"><h2>'+escapeHtml(title)+'</h2>'+
+    (description?'<p>'+escapeHtml(description)+'</p>':'')+(note?'<p>'+escapeHtml(note)+'</p>':'')+
+    (url?'<a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(url)+'">공식 안내 보기 ↗</a>':'')+'</article>';
+}
 async function showWelfare(panel, age) {
-  const status = panel.querySelector('p');
   try {
     const query = age == null || age === '' ? '' : '?age=' + encodeURIComponent(age);
     const response = await fetch('/api/welfare' + query);
-    if (!response.ok) throw new Error('Welfare lookup failed');
+    if (!response.ok) return;
     const doc = new DOMParser().parseFromString(await response.text(), 'application/xml');
-    if (!doc.querySelector('wantedList') || doc.querySelector('parsererror')) throw new Error('Invalid welfare data');
-    const items = [...doc.querySelectorAll('servList')].filter(item=>window.localHousingSupport.isHousingService(
-      item.querySelector('servNm')?.textContent || '',item.querySelector('servDgst')?.textContent || ''));
-    status.textContent = items.length ? (query ? '입력한 만 나이로 조회한 ' : '') + '주거 관련 사업 ' + items.length + '건입니다. 소득·가구 등 세부 요건은 사업별 안내에서 확인하세요.' : '조회된 주거 관련 사업이 없습니다.';
-    for (const item of items) {
-      const card = document.createElement('article');
-      const heading = document.createElement('h3');
-      heading.textContent = item.querySelector('servNm')?.textContent;
-      const summary = document.createElement('p');
-      summary.textContent = item.querySelector('servDgst')?.textContent;
-      card.append(heading, summary);
-      const id = item.querySelector('servId')?.textContent.trim();
-      if (/^WLF[0-9]+$/.test(id)) {
-        const link = document.createElement('a');
-        link.href = 'https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=' + id;
-        link.textContent = '복지로에서 상세 조건 보기';
-        card.append(link);
-      }
-      panel.append(card);
+    if (!panel.isConnected || !doc.querySelector('wantedList') || doc.querySelector('parsererror')) return;
+    const seen=new Set([...panel.querySelectorAll('h2')].map(h=>h.textContent.trim()));
+    for(const item of doc.querySelectorAll('servList')){
+      const title=item.querySelector('servNm')?.textContent.trim();
+      const description=item.querySelector('servDgst')?.textContent.trim();
+      if(!title || seen.has(title) || !window.localHousingSupport.isHousingService(title,description))continue;
+      seen.add(title);
+      const id=item.querySelector('servId')?.textContent.trim();
+      const url=/^WLF[0-9]+$/.test(id)?'https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId='+id:'';
+      panel.insertAdjacentHTML('beforeend',supportItem(title,description,url));
     }
   } catch {
-    status.textContent = '복지사업을 불러오지 못했습니다. ';
-    const retry = document.createElement('button');
-    retry.type = 'button';
-    retry.textContent = '다시 조회';
-    retry.onclick = () => { status.textContent = '조회 중…'; showWelfare(panel, age); };
-    status.append(retry);
+    // Keep the programs already available for this district.
   }
 }
 
@@ -1223,16 +1232,23 @@ function render(page, focus = true, goingBack = false) {
   state.page = page;
   saveSession();
   document.body.dataset.page = page;
-  app.innerHTML = views[page]();
-  if (page !== 'home') app.insertAdjacentHTML('afterbegin','<button type="button" class="secondary page-back" data-back>← 뒤로가기</button>');
-  if (page === 'decision') {
-    app.insertAdjacentHTML('beforeend','<section class="panel narrow" id="welfare-programs"><h2>중앙부처 주거 복지사업</h2><p aria-live="polite">복지로 사업 조회 중…</p></section>');
-    showWelfare(app.querySelector('#welfare-programs'));
-  }
+  const liveMap=page==='map' && app.querySelector('#comparison-kakao-map');
+  if(liveMap){
+    const template=document.createElement('template');
+    template.innerHTML=views.map();
+    for(const selector of ['#district-detail','.map-lower']){
+      app.querySelector(selector).replaceWith(template.content.querySelector(selector));
+    }
+    const options=liveMap.comparisonOptions;
+    Object.assign(options,{districts:mapViewScores,focused:state.mapDistrict??recommended(mapViewScores)[0]?.id??mapViewScores[0].id,compared:state.comparison});
+    liveMap.updateLabels?.();
+  }else app.innerHTML = views[page]();
+  if (page !== 'home' && !liveMap) app.insertAdjacentHTML('afterbegin','<button type="button" class="secondary page-back" data-back>← 뒤로가기</button>');
+  if(page==='supportList')showWelfare(app.querySelector('#support-programs'),state.answers[state.district]?.age);
   if(page==='results') {placeResultDetail();saveSession();ensureAutomaticRoutes();ensureRentAnalysis();}
   if(page==='map'){ensureRentAnalysis();ensureAutomaticRoutes();}
   if(['results','map'].includes(page))ensureAmenityAnalysis();
-  if(page === 'map') window.realMaps.mount(app.querySelector('#comparison-kakao-map'),{destination:state.housing.destination&&state.housing.destinationCoords?{...state.housing.destinationCoords,name:state.housing.destination}:null,districts:mapViewScores,focused:state.mapDistrict ?? recommended(mapViewScores)[0]?.id ?? mapViewScores[0].id,compared:state.comparison,viewport:state.mapViewport,onView(view){state.mapViewport=view;},onSelect(id){state.mapDistrict=id;render('map',false);}});
+  if(page === 'map' && !liveMap){const node=app.querySelector('#comparison-kakao-map');node.comparisonOptions={destination:state.housing.destination&&state.housing.destinationCoords?{...state.housing.destinationCoords,name:state.housing.destination}:null,districts:mapViewScores,focused:state.mapDistrict ?? recommended(mapViewScores)[0]?.id ?? mapViewScores[0].id,compared:state.comparison,viewport:state.mapViewport,onView(view){state.mapViewport=view;},onSelect(id){state.mapDistrict=id;render('map',false);}};window.realMaps.mount(node,node.comparisonOptions);}
 
   if (page === 'housing') {
     const form = app.querySelector('#housing-form');
@@ -1266,6 +1282,11 @@ document.addEventListener('click', (event) => {
 
   if ('changeDestination' in button.dataset || 'openDestination' in button.dataset){openDestinationDialog(button);return;}
   if ('noDestination' in button.dataset){confirmDestination(button.form,null);return;}
+  if(button.dataset.supportDistrict){
+    state.district=button.dataset.supportDistrict;
+    render('supportInput');
+    return;
+  }
   if (button.dataset.go) {
     if(button.dataset.go==='map' && state.page==='results')state.mapDistrict=state.resultDistrictId;
     if(button.dataset.go==='results' && state.page==='map' && state.mapDistrict){
@@ -1298,8 +1319,7 @@ document.addEventListener('click', (event) => {
       if(state.comparison.length<2) state.comparison = [...state.comparison,compare];
     }
     render('map',false);
-    const focusTarget = compare ? '[data-compare="' + compare + '"]'
-      : '[data-map="' + (map ?? remove) + '"]';
+    const focusTarget = '[data-map-pick="' + (compare ?? remove ?? map) + '"]';
     app.querySelector(focusTarget)?.focus({preventScroll:true});
 
   }
@@ -1337,6 +1357,11 @@ app.addEventListener('submit', (event) => {
     state.hasResults=true;state.resultSelectionAutomatic=!state.resultDistrictId;state.departureOpen={};state.scoreSectionOpen=false;state.scoreEvidenceOpen={};
 
     render('results');
+  }
+  if(event.target.id==='support-search-form'){
+    state.answers[state.district]=Object.fromEntries(new FormData(event.target));
+    render('supportList');
+    return;
   }
   if (event.target.id === 'eligibility-form') {
     const data = Object.fromEntries(new FormData(event.target));
