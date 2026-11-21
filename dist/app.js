@@ -402,6 +402,7 @@ function validDestination(place){
 function setCandidate(editor,place){
  editor.candidate=validDestination(place)?place:null;
  editor.querySelector('[data-candidate]').textContent=editor.candidate?.name||'미선택';
+ editor.querySelector('[data-candidate]').closest('p').hidden=!editor.candidate;
  editor.querySelector('[data-finish]').disabled=!editor.candidate;
  for(const button of editor.querySelectorAll('[data-search-index]')){
    button.setAttribute('aria-pressed',String(editor.searchItems[Number(button.dataset.searchIndex)]===editor.candidate));
@@ -424,7 +425,7 @@ function queueDestinationSearch(form,input) {
       const items=await window.realMaps.search(query);
       if(!form.isConnected||form.composing||generation!==form.searchGeneration)return;
       form.searchItems=items;
-      output.innerHTML=items.length?'<p>검색 결과 (총 '+items.length+'건)</p><ul>'+items.map((p,i)=>'<li><button type="button" class="secondary" data-search-index="'+i+'" aria-pressed="false">'+destinationIcon+'<span><strong>'+escapeHtml(p.name)+'</strong><small>'+escapeHtml(p.address||'주소 정보 없음')+'</small></span></button></li>').join('')+'</ul>':'<p role="status">검색 결과가 없어요. 주소나 장소명을 바꿔 보세요.</p>';
+      output.innerHTML=items.length?'<p><strong>검색 결과</strong> (총 '+items.length+'건)</p><ul>'+items.map((p,i)=>'<li><button type="button" class="secondary" data-search-index="'+i+'" aria-pressed="false">'+destinationIcon+'<span><strong>'+escapeHtml(p.name)+'</strong><small>'+escapeHtml(p.address||'주소 정보 없음')+'</small></span></button></li>').join('')+'</ul>':'<p role="status">검색 결과가 없어요. 주소나 장소명을 바꿔 보세요.</p>';
     }catch(error){
       if(form.isConnected&&generation===form.searchGeneration)output.innerHTML='<p role="alert">'+escapeHtml(error.message)+'</p>';
     }
@@ -559,7 +560,7 @@ function housingSummary(h) {
 function housingNumber(name,label,value,hint = '',min = 0,step = 'any') {
   return '<div><label for="housing-' + name + '">' + label + '</label><div class="number-control">' +
     '<input inputmode="' + (step === '1' ? 'numeric' : 'decimal') + '" id="housing-' + name + '" name="' + name +
-    '" type="number" min="' + min + '" step="' + step + '" required value="' + escapeHtml(value) +
+    '" type="number" '+(name==='deposit'?'placeholder="예: 1,000" ':name==='monthly'?'placeholder="예: 70" ':'')+'min="' + min + '" step="' + step + '" required value="' + escapeHtml(value) +
     '" aria-describedby="' + (hint ? 'hint-' + name + ' ' : '') + 'error-' + name + '">' +
     '<span>' + (['deposit','monthly'].includes(name) ? '만원' : '분') + '</span></div>' +
     (hint ? '<p id="hint-' + name + '" class="muted field-hint">' + hint + '</p>' : '') +
@@ -826,7 +827,7 @@ function resultExplorer(scores,items) {
       (outside&&!state.otherDistrictsOpen?'<p class="collapsed-selection-name">선택한 구 · '+selected.name+'</p>':'')+
       '<div id="other-district-list"'+(state.otherDistrictsOpen?'':' hidden')+'>'+others.map(d=>row(d,null)).join('')+'</div>':'')+
     '<div class="collapsed-selection-slot"></div></aside><div class="result-detail-host">'+
-    (selected?'<div class="selected-result-detail">'+resultCard(selected)+'</div>':'<section class="panel"><h2>자치구 상세</h2><p>왼쪽 목록에서 살펴볼 자치구를 선택해 주세요.</p></section>')+
+    (selected?'<div class="selected-result-detail">'+resultCard(selected,top)+'</div>':'<section class="panel"><h2>자치구 상세</h2><p>왼쪽 목록에서 살펴볼 자치구를 선택해 주세요.</p></section>')+
     '</div></div>';
 }
 function placeResultDetail() {
@@ -966,10 +967,41 @@ function fitSummary(d){
   '<button type="button" class="secondary" data-route-query="'+d.id+'" data-route-retry>이동시간 다시 조회</button>':'';
  return '<section class="v3-facts"><table><caption>주거비·이동시간 비교</caption><thead><tr><th scope="col">항목</th><th scope="col">내 조건과 비교</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>'+rentRetry+routeRetry+'</section>';
 }
-function resultCard(d){
+function recommendationReasons(d,finalists,housing){
+ const advantages=[],disadvantages=[];
+ const peers=finalists.filter(other=>other.id!==d.id);
+ const order=selectedOrder(housing);
+ const metrics=[
+  {group:'housing',label:'월세 중앙값',unit:'만 원',minimum:3,read:r=>r.rentEvidence?.row?.medianRent},
+  {group:'housing',label:'보증금 중앙값',unit:'만 원',minimum:100,read:r=>r.rentEvidence?.row?.medianDeposit},
+  {group:'housing',label:'예산을 충족한 거래 표본',unit:'건',minimum:3,more:true,read:r=>r.rentEvidence?.analyzedCount>0?r.rentEvidence.count:null},
+  {group:'commute',label:'목적지까지 이동시간 중앙값',unit:'분',minimum:5,read:r=>r.neighborhood?.count>=2?r.neighborhood.median:null}
+ ];
+ const priority=key=>order.includes(key)?order.indexOf(key):order.length;
+ const format=value=>value.toLocaleString('ko-KR',{maximumFractionDigits:1});
+ for(const metric of metrics.sort((a,b)=>priority(a.group)-priority(b.group))){
+   const value=metric.read(d);
+   const others=peers.map(metric.read).filter(Number.isFinite).sort((a,b)=>a-b);
+   if(!Number.isFinite(value)||!others.length)continue;
+   const reference=(others[Math.floor((others.length-1)/2)]+others[Math.floor(others.length/2)])/2;
+   const delta=value-reference;
+   if(Math.abs(delta)<Math.max(metric.minimum,reference*0.05))continue;
+   const favorable=metric.more?delta>0:delta<0;
+   const direction=metric.more?(delta>0?'많습니다':'적습니다'):metric.group==='commute'?(delta>0?'깁니다':'짧습니다'):(delta>0?'높습니다':'낮습니다');
+   (favorable?advantages:disadvantages).push(metric.label+' '+format(value)+metric.unit+' · 비교 기준 '+format(reference)+metric.unit+'보다 '+format(Math.abs(delta))+metric.unit+' '+direction+'.');
+ }
+ return {advantages,disadvantages};
+}
+function recommendationNotes(d,finalists){
+ if(!finalists.some(other=>other.id===d.id))return '';
+ const {advantages,disadvantages}=recommendationReasons(d,finalists,state.housing);
+ const list=(title,items)=>'<section><h3>'+title+'</h3>'+(items.length?'<ul>'+items.map(item=>'<li>'+escapeHtml(item)+'</li>').join('')+'</ul>':'<p>비교 가능한 자료에서 뚜렷한 차이가 확인되지 않았어요.</p>')+'</section>';
+ return '<div class="recommendation-notes">'+list('내 조건에 맞는 이유',advantages)+list('감수해야 할 점',disadvantages)+'<small>비교 기준은 나머지 최종 추천 지역 중 자료가 있는 곳의 중앙값입니다. 거래 건수는 현재 매물 수와 다릅니다.</small></div>';
+}
+function resultCard(d,finalists=[]){
  const count=criterionKeys.filter(k=>Number.isFinite(evaluationState(d)[k].score)).length;
  return '<article class="card result-card"><div class="card-head"><h2>'+d.name+'</h2><span class="score"><b>'+(d.total==null?'—':d.total.toFixed(1)+' / 100')+'</b><small>'+(d.weightPolicyPending?'우선순위 선택 필요':count===3?'평가 완료':count?'부분 평가 · 임시':'미평가')+'</small></span></div>'+dashboardC(d)+fitSummary(d)+neighborhoodBudget(d)+
- '<section class="result-supports district-supports"><h3>'+resultIcon('building')+'자치구 주거지원사업</h3>'+resultSupport(d,true)+'</section><section class="result-supports common-supports"><h3>'+resultIcon('building')+'서울시·공통 지원사업</h3>'+resultSupport(d,false)+'</section></article>';
+ recommendationNotes(d,finalists)+'<section class="result-supports district-supports"><h3>'+resultIcon('building')+'자치구 주거지원사업</h3>'+resultSupport(d,true)+'</section><section class="result-supports common-supports"><h3>'+resultIcon('building')+'서울시·공통 지원사업</h3>'+resultSupport(d,false)+'</section></article>';
 }
 
 
@@ -1036,7 +1068,8 @@ const views = {
       '<section class="input-card"><h2>추천 우선순위</h2><p class="muted">세 가지 조건을 중요하게 생각하는 순서대로 선택해 주세요. 선택한 순서에 따라 1순위, 2순위, 3순위가 지정됩니다. 선택한 항목을 다시 누르면 선택이 취소됩니다.</p>'+(h.priorityNeedsReselect?'<p class="priority-reselect-notice" role="status">이전에 선택한 우선순위는 현재 사용할 수 없어요. 추천 우선순위를 다시 선택해 주세요.</p>':'')+'<div class="criteria-priority-options" role="group" aria-label="추천 우선순위">'+
       criterionKeys.map(key=>{
         const rank=h.priorityOrder.indexOf(key)+1;
-        return '<label><input type="checkbox" name="priority" value="'+key+'"'+(rank?' checked':'')+'><span>'+priorities[key].label+'<small class="priority-rank">'+(rank?rank+'순위':'')+'</small></span></label>';
+        const icon=key==='convenience'?'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13"/><path d="M12 8C4 8 5 2 8 3c2 0 3 3 4 5 1-2 2-5 4-5 3-1 4 5-4 5Z"/></svg>':resultIcon(key==='housing'?'home':'train');
+        return '<label><input type="checkbox" name="priority" value="'+key+'"'+(rank?' checked':'')+'><span><small class="priority-rank">'+(rank||'')+'</small>'+icon+priorities[key].label+'</span></label>';
       }).join('')+
       '</div><p class="field-error" id="error-priority" aria-live="polite"></p><p class="muted" id="convenience-priority-hint">생활 편의시설은 서울 25개 자치구의 시설 수 순위를 기준으로 평가합니다.</p></section></div>'+
       '<aside class="input-card input-summary"><h2>입력 조건 확인</h2><div id="housing-summary">' + housingSummary(h) +
@@ -1283,7 +1316,7 @@ app.addEventListener('input', (event) => {
     state.housing.priorityOrder=order;
     for(const option of form.querySelectorAll('[name="priority"]')){
       const rank=order.indexOf(option.value)+1;
-      option.labels[0].querySelector('.priority-rank').textContent=rank?rank+'순위':'';
+      option.labels[0].querySelector('.priority-rank').textContent=rank||'';
     }
   }
   updateTimePreset(event.target);

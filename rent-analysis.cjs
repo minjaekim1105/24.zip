@@ -44,6 +44,7 @@ function summarize(rows,filters) {
   const districts=new Map();
   const neighborhoods=new Map();
   const rents=new Map();
+  const deposits=new Map();
   for (const row of rows) {
     const name=String(row.CGG_NM||'').trim();
     const code=String(row.CGG_CD||'').trim();
@@ -59,6 +60,8 @@ function summarize(rows,filters) {
     d.validMonthlyTransactionCount++;
     if(!rents.has(name)) rents.set(name,[]);
     rents.get(name).push(rent);
+    if(!deposits.has(name)) deposits.set(name,[]);
+    deposits.get(name).push(deposit);
     const match=deposit<=filters.budget&&rent<=filters.monthlyRentBudget;
     if(match)d.conditions.allMatchCount++;
     const dong=String(row.STDG_NM || row.BJDONG_NM || '').trim();
@@ -73,11 +76,16 @@ function summarize(rows,filters) {
   }
   for(const d of districts.values()){
     d.neighborhoods=Array.from(neighborhoods.get(d.regionName)?.values() || []);
-    const sample=(rents.get(d.regionName)||[]).sort((a,b)=>a-b);
-    const mid=Math.floor(sample.length/2);
-    d.medianRent=sample.length?(sample.length%2?sample[mid]:(sample[mid-1]+sample[mid])/2):null;
+    d.medianRent=median(rents.get(d.regionName));
+    d.medianDeposit=median(deposits.get(d.regionName));
   }
   return [...districts.values()].sort((a,b)=>b.conditions.allMatchCount-a.conditions.allMatchCount);
+}
+function median(values){
+  if(!values?.length)return null;
+  values.sort((a,b)=>a-b);
+  const middle=Math.floor(values.length/2);
+  return (values[middle]+values[Math.floor((values.length-1)/2)])/2;
 }
 async function analyze(input,provider=process.env.SEOUL_API_KEY) {
   const f=validateInput(input);

@@ -1159,3 +1159,95 @@ body:has(.dest-dialog[open]) {overflow:hidden}
 .dest-foot [data-finish]:disabled {opacity:.45;cursor:not-allowed}
 .dest-dialog :focus-visible,.dest-choice button:focus-visible {outline:3px solid #2879cf;outline-offset:2px}
 @media(max-width:600px){.dest-head,.dest-foot,.dest-body {padding-inline:16px}.dest-body .button-group span{font-size:14px}.dest-body .button-group>div{gap:5px}.dest-head h2{font-size:21px}}
+/* Housing form and destination dialog */
+body[data-page=housing] {background:#e9f1fb;color:#102b4f}
+body[data-page=housing] :is(header,main.shell) {width:calc(100% - clamp(24px,4vw,58px));max-width:1390px;margin-inline:auto;border-color:#b8cdea}
+body[data-page=housing] header {margin-top:18px;background:#fdfeff;border-radius:20px 20px 0 0}
+body[data-page=housing] header .top {height:73px;width:auto;margin:0;padding:0 clamp(20px,2.65vw,40px)}
+body[data-page=housing] .brand .logo-crop {width:150px}
+body[data-page=housing] .top-label {font-size:16px;color:#375674}
+body[data-page=housing] main.shell {padding:26px clamp(20px,2.65vw,40px) 32px;background:#f2f6fc;border-radius:0 0 20px 20px;box-shadow:0 12px 30px #32558218;display:flow-root}
+body[data-page=housing] .page-back {float:left;width:138px;height:50px;border-radius:11px;font-weight:750}
+.temporary-route-switch {min-height:58px;margin:0 0 16px}
+.temporary-route-switch label {align-self:start;min-height:58px;min-width:min(284px,100%);justify-content:center;gap:12px;font-size:17px}
+.temporary-route-switch input {width:24px;height:24px;accent-color:#0c3054}
+body[data-page=housing] h1 {clear:both;font-size:clamp(30px,2.6vw,38px);font-weight:850;line-height:1.25;color:#102b4f}
+body[data-page=housing] h1:focus-visible {outline:2px solid #527eb1;outline-offset:3px}
+body[data-page=housing] h1 + .muted {font-size:17px;color:#49617c;margin:6px 0 18px}
+body[data-page=housing] .housing-layout {grid-template-columns:minmax(0,2.14fr) minmax(0,1fr);gap:24px}
+.housing-layout .form-cards {gap:18px}
+.housing-layout .input-card {padding:24px clamp(18px,2.35vw,34px);border:1px solid #c5d7ed;border-radius:17px;background:#fdfeff}
+.housing-layout .input-card h2 {font-size:25px;color:#102b4f;margin:0 0 16px;line-height:1.3}
+.housing-layout .budget-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:34px}
+.budget-grid label,.dest-choice legend {font-size:19px;font-weight:750}
+.budget-grid .number-control input {height:50px;border:1px solid #b8cce5;border-radius:11px;padding-right:64px;font-size:19px}
+.budget-grid input::placeholder {color:#768aa1}
+.budget-grid .number-control span {right:18px}
+.housing-layout .input-summary {padding:26px}
+.input-summary li {padding:14px 0;font-size:18px;overflow-wrap:anywhere;border-color:#ceddee}
+.housing-layout .input-summary button {margin-top:30px;min-height:65px;border-radius:12px;background:#0c3054;font-size:23px;font-weight:800}
+.dest-choice button {min-height:50px}
+#destination-fields:not([hidden]) {margin-top:20px}
+.dest-confirmed {min-height:52px;padding:7px 12px;background:#e8f2fd;border:1px solid #b3cce9;border-radius:11px}
+.dest-confirmed svg {width:27px;height:27px;color:#547499}
+.dest-confirmed #destination-confirmed {min-width:0;font-size:20px;margin:0;padding:0;border:0;background:transparent}
+.dest-confirmed button {min-height:36px;padding:4px 14px}
+.housing-layout .criteria-priority-options {grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(8px,1.25vw,18px);margin-top:17px}
+.housing-layout .criteria-priority-options span {gap:8px;min-height:52px;padding:7px;border-radius:12px;font-size:clamp(15px,1.35vw,20px);font-weight:750;line-height:1.25;word-break:keep-all}
+.criteria-priority-options svg {width:28px;height:28px;color:#2169ac;flex:none}
+.housing-layout .criteria-priority-options input:checked+span {background:#ddebfC;border-color:#bdd5f0;box-shadow:none}
+.housing-layout .criteria-priority-options .priority-rank:not(:empty) {display:grid;place-items:center;flex:none;width:36px;height:36px;background:#1477f5;color:white;border-radius:50%;margin:0;padding:0;font-size:20px}
+.priority-rank:empty {display:none}
+.housing-layout .input-card:has(.criteria-priority-options)>p.muted {font-size:17px;color:#4d6480}
+.dest-dialog {width:min(685px,calc(100% - 24px));max-height:88dvh;background:#f8fbff}
+.dest-dialog::backdrop {background:rgba(20,38,64,.38)}
+.dest-head {display:grid;grid-template-columns:42px 1fr 42px;align-items:center;min-height:74px;padding-block:12px;background:#f0f6fd}
+.dest-head>span {width:42px;height:42px}
+.dest-head h2 {text-align:center;font-size:28px;color:#102b4f}
+.dest-body {padding-block:25px 0}
+.dest-body fieldset {margin-bottom:20px;min-width:0}
+.dest-body .button-group>div {grid-template-columns:1.15fr 1fr 1fr}
+.dest-body .button-group input:checked+span {background:#173a63}
+.dest-search {border-color:#adc4e4}
+.dest-search svg {width:22px;height:22px}
+.dest-search input::placeholder {color:#637993}
+.dest-body .destination-results p {margin:18px 0 8px;color:#4a6079}
+.dest-body .destination-results ul {max-height:min(320px,34dvh);border-radius:12px}
+.dest-body .destination-results [data-search-index] {flex-direction:row;align-items:center;min-height:62px;box-shadow:none;padding:8px 14px;text-align:left}
+.dest-body [data-search-index] span {text-align:left}
+.dest-body [data-search-index]>svg {width:27px;height:27px;flex:none;color:#25598e}
+.dest-body [data-search-index]>span {min-width:0;overflow-wrap:anywhere}
+.dest-body [data-search-index] strong {font-size:18px;line-height:1.4}
+.dest-body [data-search-index] small {font-size:14px;line-height:1.4}
+.dest-body [data-search-index]::after {width:22px;height:22px}
+.dest-body [data-search-index][aria-pressed=true] {background:#d6e7fc}
+.dest-body [data-search-index][aria-pressed=true]::after {border-color:#1477f5;background:#1477f5;box-shadow:inset 0 0 0 4px white}
+.dest-body [data-picker=station] select {min-height:50px;border:1px solid #adc4e4;border-radius:10px}
+.dest-body #destination-kakao-map {border-radius:12px;overflow:hidden}
+.dest-foot {padding-block:22px 24px}
+.dest-foot p {display:flex;align-items:center;gap:8px;min-height:52px;background:#dce9fc;margin:0 0 23px;overflow-wrap:anywhere}
+.dest-foot p::before {content:'✓';display:grid;place-items:center;flex:none;width:23px;height:23px;border-radius:50%;color:white;background:#196dd4}
+.dest-foot button {min-height:52px}
+.dest-foot [data-finish] {background:linear-gradient(135deg,#187bd9,#0643b0)}
+.recommendation-notes {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0}
+.recommendation-notes section {border:1px solid #cdddf0;border-radius:12px;padding:16px;background:#f8fbff}
+.recommendation-notes h3,.recommendation-notes p {margin:0}
+.recommendation-notes ul {margin:8px 0 0;padding-left:20px}
+.recommendation-notes>small {grid-column:1/-1;color:#506984}
+@media(max-width:850px){
+  body[data-page=housing] .housing-layout {grid-template-columns:1fr}
+  .housing-layout .input-summary {position:static}
+}
+@media(max-width:560px){
+  body[data-page=housing] main.shell {padding:16px}
+  body[data-page=housing] header .top {height:60px;padding-inline:16px}
+  body[data-page=housing] .top-label {font-size:12px}
+  body[data-page=housing] .page-back {float:none;width:auto;height:44px}
+  .temporary-route-switch label {min-width:0;font-size:15px;padding-inline:12px}
+  .housing-layout .budget-grid,.housing-layout .criteria-priority-options,.recommendation-notes {grid-template-columns:1fr}
+  .housing-layout .budget-grid {gap:12px}
+  .dest-body,.dest-foot,.dest-head {padding-inline:16px}
+  .dest-head h2 {font-size:24px}
+  .dest-body .button-group span {padding-inline:3px}
+  .dest-foot p {flex-wrap:wrap}
+}
