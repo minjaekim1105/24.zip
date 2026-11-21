@@ -1127,11 +1127,13 @@ body:has(.dest-dialog[open]) {overflow:hidden}
 .dest-body fieldset {border:0;padding:0;margin:0 0 18px}
 .dest-body legend {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .dest-body .button-group>div {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.dest-body .button-group label {min-width:0;margin:0}
+.dest-body .button-group label {display:grid;min-width:0;margin:0}
 .dest-body .button-group span {display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;min-height:45px;line-height:1.25;border:1px solid #c2d2e4;border-radius:9px;color:#153656;background:white;word-break:keep-all}
 .dest-body .button-group input:checked+span {background:#0c2b50;color:#fff;border-color:#0c2b50}
 .dest-search {display:flex;align-items:center;gap:10px;padding:0 14px;min-height:50px;border:1px solid #b9ccdf;border-radius:10px;background:white}
-.dest-search input {width:100%;min-width:0;margin:0;background:none;border:0;padding:10px 0}
+.dest-search svg {flex:none}
+.dest-search #destination-search {flex:1;min-width:0;height:48px;margin:0;background:none;border:0;padding:0}
+.dest-search #destination-search:focus {outline:none;box-shadow:none}
 .dest-search:focus-within {outline:2px solid #126ad8}
 .dest-body .destination-results ul {list-style:none;max-height:min(230px,33dvh);overflow:auto;display:block;margin:8px 0 0;padding:0;border:1px solid #cbd9e6;border-radius:10px;background:white}
 .dest-body .destination-results li {margin:0;padding:0}
