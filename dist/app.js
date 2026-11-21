@@ -659,8 +659,9 @@ function shortReasons(d) {
 }
 function resultSupport(d,local) {
   const entries = projectEntries(d).filter(([,p]) => Boolean(p.districtId) === local);
-  if (!entries.length) return '<p>' + (local ? '확인된 자치구 자체 공고가 없어요' : '확인된 공통 공고가 없어요') + '</p>';
-  return entries.map(([key,p]) => '<section class="result-project"><div class="project-labels"><span>' +
+  const districtCards=local ? window.localHousingSupport?.cards(d.name) || '' : '';
+  if (!entries.length) return districtCards || '<p>' + (local ? '확인된 자치구 자체 공고가 없어요' : '확인된 공통 공고가 없어요') + '</p>';
+  return districtCards + entries.map(([key,p]) => '<section class="result-project"><div class="project-labels"><span>' +
     (p.scopeType === 'city' ? '서울시 공통' : '구 자체') + '</span><span>' + escapeHtml(p.status) +
     '</span><span>지역에 있는 사업 · 개인 조건 미확인</span></div><h4>' + escapeHtml(p.name) + '</h4><p>' + escapeHtml(p.benefit) +
     '</p><small>적용 범위 · ' + escapeHtml(p.scope) + (p.year ? ' · '+p.year+'년 모집 회차' : '') +
@@ -1151,7 +1152,8 @@ async function showWelfare(panel, age) {
     if (!response.ok) throw new Error('Welfare lookup failed');
     const doc = new DOMParser().parseFromString(await response.text(), 'application/xml');
     if (!doc.querySelector('wantedList') || doc.querySelector('parsererror')) throw new Error('Invalid welfare data');
-    const items = [...doc.querySelectorAll('servList')];
+    const items = [...doc.querySelectorAll('servList')].filter(item=>window.localHousingSupport.isHousingService(
+      item.querySelector('servNm')?.textContent || '',item.querySelector('servDgst')?.textContent || ''));
     status.textContent = items.length ? (query ? '입력한 만 나이로 조회한 ' : '') + '주거 관련 사업 ' + items.length + '건입니다. 소득·가구 등 세부 요건은 사업별 안내에서 확인하세요.' : '조회된 주거 관련 사업이 없습니다.';
     for (const item of items) {
       const card = document.createElement('article');

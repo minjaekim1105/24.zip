@@ -117,10 +117,7 @@ if(typeof document!=='undefined'){
     }else{
       add('p','24zip에 등록된 '+district+' 자체 주거비 모집 공고가 아직 없습니다. 추가 사업은 구청에서 확인하세요.');
     }
-    const card=add('article','');
-    add('h3','전월세 안심계약 도움서비스',card);
-    add('p','서울시 공통 · 자치구별 운영. 서울에 혼자 거주하거나 독립할 예정이라면 계약 전에 무료 상담과 집보기 동행을 문의할 수 있어요.',card);
-    link(district+' 상담 문의처·예약 방법 ↗','https://1in.seoul.go.kr/front/intropage/intropageShow.do?page_id=b6f12a6f04b84e49922a79938b792490',card);
+    local.insertAdjacentHTML('beforeend',window.localHousingSupport.cards(district));
     const office=districtOffices[district];
     if(office) link(district+'청에서 다른 복지·지원 공고 찾기 ↗','https://'+office,local);
     add('p','자료 확인일 2026.11.21 · 현재 거주지와 이사 예정지는 사업별로 다르게 심사할 수 있어요.');
@@ -139,6 +136,6 @@ if(typeof document!=='undefined'){
       const {fail,pending,pass}=assess(n.id,input);
       const status=fail.length?'입력 조건 불충족':pending.length?'추가 정보 필요':'입력 조건 충족';
       return '<article><small>'+ (n.id==='gwanak'?'관악구 자체 사업':'서울시 공통 사업')+'</small><h3>'+n.title+'</h3><p class="period">접수 마감 · '+n.period+'</p><strong>'+status+'</strong><ul>'+[...fail,...pending,...pass].map(v=>'<li>'+v+'</li>').join('')+'</ul><p>별도 심사 항목 · '+n.other+'</p><small>공고 확인일 2026.11.21 · 해당 회차 기준</small><br><a href="'+n.url+'" target="_blank" rel="noopener">공식 모집 공고 보기 ↗</a></article>';
-    }).join('');
+    }).join('')+window.localHousingSupport.cards(selector.value,input.year);
   });
 }
