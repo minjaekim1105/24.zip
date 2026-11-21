@@ -1104,6 +1104,11 @@ body[data-page="home"] main.shell { width:100%; max-width:none; padding:0; displ
 }
 
 /* Committed destination and its temporary picker */
+.v3-facts table {width:100%;border-collapse:collapse;table-layout:fixed;text-align:left}
+.v3-facts caption {text-align:left;font-size:1.1rem;font-weight:700;padding-bottom:10px}
+.v3-facts th,.v3-facts td {text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid #d6e3f4;overflow-wrap:anywhere}
+.v3-facts th:first-child {width:32%}
+.v3-facts td small {margin-top:3px}
 .dest-choice {border:0;padding:0;margin:0;min-width:0}
 .dest-choice legend {font-weight:700;margin-bottom:9px}
 .dest-choice>div,.dest-foot>div {display:grid;grid-template-columns:1fr 1fr;gap:10px}

@@ -947,7 +947,9 @@ function compareFacts(d){
    return gap===0?'내 상한과 같음':Math.abs(gap)+unit+(gap>0?' 초과':' 여유');
  }
  const h=state.housing;
- facts.push(['월세 중앙값',Number.isFinite(median)?money(median)+' · '+difference(median,h.monthly,'만원'):'자료 확인 전',d.name+' 유효 월세 거래 '+(rent?.analyzedCount??0)+'건 · 2026년 표본, 관리비 제외']);
+ const rentStatus=rent?.status==='ok'?'유효 거래 표본 없음':rentEvidenceText(d);
+ facts.push(['월세 중앙값',Number.isFinite(median)?money(median)+' · '+difference(median,h.monthly,'만원'):rentStatus,
+  Number.isFinite(rent?.analyzedCount)?d.name+' 유효 월세 거래 '+rent.analyzedCount+'건 · 관리비 제외':'서울시 전월세 거래 표본 · 관리비 제외']);
  const origins=(d.neighborhood?.points??[]).filter(p=>p.status==='ok').map(p=>p.name||p.label).filter(Boolean);
  facts.push(['이동시간 중앙값',Number.isFinite(minutes)?displayMinutes(minutes)+'분 · '+difference(minutes,h.maxMinutes,'분'):routeRange(d)||'미평가',
   (origins.length?origins.join(', '):d.name+' 주요 역 기준점')+' → '+(h.destination||'목적지 미설정')+' · '+travelModeLabel(h.mode)]);
@@ -956,7 +958,12 @@ function compareFacts(d){
  return facts;
 }
 function fitSummary(d){
- return '<section class="v3-facts"><h3>내 조건과 비교</h3><dl>'+compareFacts(d).map(([label,value,basis])=>'<div><dt>'+label+'</dt><dd><strong>'+escapeHtml(value)+'</strong><small>'+escapeHtml(basis)+'</small></dd></div>').join('')+'</dl></section>';
+ const rows=compareFacts(d).map(([label,value,basis])=>
+  '<tr><th scope="row">'+escapeHtml(label)+'</th><td><strong>'+escapeHtml(value)+'</strong><small>'+escapeHtml(basis)+'</small></td></tr>');
+ const rentRetry=d.rentEvidence?.status==='error'?'<button type="button" class="secondary" data-retry-rent>주거비 다시 조회</button>':'';
+ const routeRetry=state.housing.routeEnabled!==false&&state.housing.destinationCoords&&d.neighborhood.count<2&&['idle','complete'].includes(d.neighborhood.status)?
+  '<button type="button" class="secondary" data-route-query="'+d.id+'" data-route-retry>이동시간 다시 조회</button>':'';
+ return '<section class="v3-facts"><table><caption>주거비·이동시간 비교</caption><thead><tr><th scope="col">항목</th><th scope="col">내 조건과 비교</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>'+rentRetry+routeRetry+'</section>';
 }
 function resultCard(d){
  const count=criterionKeys.filter(k=>Number.isFinite(evaluationState(d)[k].score)).length;
@@ -1188,7 +1195,7 @@ function render(page, focus = true, goingBack = false) {
     showWelfare(app.querySelector('#welfare-programs'));
   }
   if(page==='results') {placeResultDetail();saveSession();ensureAutomaticRoutes();ensureRentAnalysis();}
-  if(page==='map')ensureRentAnalysis();
+  if(page==='map'){ensureRentAnalysis();ensureAutomaticRoutes();}
   if(['results','map'].includes(page))ensureAmenityAnalysis();
   if(page === 'map') window.realMaps.mount(app.querySelector('#comparison-kakao-map'),{destination:state.housing.destination&&state.housing.destinationCoords?{...state.housing.destinationCoords,name:state.housing.destination}:null,districts:mapViewScores,focused:state.mapDistrict ?? recommended(mapViewScores)[0]?.id ?? mapViewScores[0].id,compared:state.comparison,viewport:state.mapViewport,onView(view){state.mapViewport=view;},onSelect(id){state.mapDistrict=id;render('map',false);}});
 
@@ -1219,6 +1226,7 @@ document.addEventListener('click', (event) => {
   if(button.dataset.resultDistrict){if(state.resultDistrictId!==button.dataset.resultDistrict)state.scoreEvidenceOpen={};state.resultSelectionAutomatic=false;state.resultDistrictId=button.dataset.resultDistrict;render('results',false);app.querySelector('[data-result-district="'+state.resultDistrictId+'"]')?.focus({preventScroll:true});return;}
   if('otherDistricts' in button.dataset){state.otherDistrictsOpen=!state.otherDistrictsOpen;render('results',false);app.querySelector('[data-other-districts]')?.focus({preventScroll:true});return;}
   if(button.dataset.routeQuery){loadNeighborhoodRoutes(button.dataset.routeQuery,'routeRetry' in button.dataset);return;}
+  if(button.hasAttribute('data-retry-rent')){window.rentData.retry(state.housing);ensureRentAnalysis();render(state.page,false);return;}
 
 
   if ('changeDestination' in button.dataset || 'openDestination' in button.dataset){openDestinationDialog(button);return;}
