@@ -29,18 +29,19 @@ test('convenience stays unrated unless a sourced evaluation is supplied, zero re
  assert.equal(vm.runInContext('validConvenience({score:50,status:"evaluated"}).score',c),null);
  assert.equal(vm.runInContext('validConvenience({score:0,status:"evaluated",dataSource:"verified source",evaluatedAt:"2026-11-20",details:"verified sample"}).score',c),0);
 });
-test('unavailable convenience priority is disabled and legacy selection requires reselection',()=>{
+test('legacy daily priority selects the enabled convenience option',()=>{
  const c=context();
  vm.runInContext(`state.page='housing';state.housing=normalizeHousing({...state.housing,deposit:'2000',monthly:'70',destination:'서울역',mode:'walk',priority:'daily'});`,c);
- assert.equal(vm.runInContext('state.housing.priority',c),'');
- assert.equal(vm.runInContext('state.housing.priorityNeedsReselect',c),true);
+ assert.equal(vm.runInContext('state.housing.priority',c),'convenience');
+ assert.equal(vm.runInContext('state.housing.priorityNeedsReselect',c),false);
  assert.equal(vm.runInContext('state.housing.destination',c),'서울역');
  const html=vm.runInContext('views.housing()',c);
- assert(html.includes('추천 우선순위'));assert(html.includes('생활 편의시설 (준비 중)'));
- assert(/value="convenience"[^>]*disabled/.test(html));
- assert(html.includes('다시 선택해 주세요'));assert(!html.includes('data-clear-priority'));
+ const radio=html.match(/<input[^>]*value="convenience"[^>]*>/)?.[0];
+ assert.ok(radio);
+ assert.match(radio,/ checked/);
+ assert.doesNotMatch(radio,/ disabled/);
 });
-test('50/25/25 normalizes valid scores exactly, supports future convenience, and preserves genuine zero',()=>{
+test('50/25/25 normalizes valid scores exactly, includes sourced convenience, and preserves genuine zero',()=>{
  const c=context();
  c.window.neighborhoodRoutes={get:()=>({status:'complete',count:3,median:55,registered:3,points:[]})};
  c.window.rentData={get:()=>({status:'ok',score:80})};
@@ -48,14 +49,12 @@ test('50/25/25 normalizes valid scores exactly, supports future convenience, and
  let d=vm.runInContext('ranked()[0]',c);
  assert(Math.abs(d.weights.housing-200/3)<1e-9);assert.equal(d.weights.housing+d.weights.commute,100);
  assert(Math.abs(d.total-230/3)<1e-9);
- vm.runInContext(`districts[0].convenienceEvaluation={score:60,status:'evaluated',dataSource:'test fixture only',evaluatedAt:'2026-11-20'};`,c);
- d=vm.runInContext('ranked().find(d=>d.id===districts[0].id)',c);
+ vm.runInContext(`amenityEvaluations.set('gwangjin',{score:60,status:'evaluated',dataSource:'test fixture only',evaluatedAt:'2026-11-20'});`,c);
+ d=vm.runInContext('ranked().find(d=>d.id==="gwangjin")',c);
  assert.equal(d.weights.housing,50);assert.equal(d.weights.commute,25);assert.equal(d.weights.convenience,25);assert.equal(d.total,72.5);
  vm.runInContext(`state.housing.priority='convenience'`,c);
- assert.equal(vm.runInContext('ranked()[0].total',c),undefined);
- vm.runInContext(`criterionAvailability.convenience=true`,c);
- d=vm.runInContext('ranked().find(d=>d.id===districts[0].id)',c);assert.equal(d.total,67.5);
- vm.runInContext(`state.housing.priority='housing';state.housing.routeEnabled=false;for(const d of districts)delete d.convenienceEvaluation;`,c);
+ d=vm.runInContext('ranked().find(d=>d.id==="gwangjin")',c);assert.equal(d.total,67.5);
+ vm.runInContext(`state.housing.priority='housing';state.housing.routeEnabled=false;amenityEvaluations.clear();`,c);
  c.window.rentData={get:()=>({status:'ok',score:0})};d=vm.runInContext('ranked()[0]',c);assert.equal(d.total,0);assert.equal(d.weights.housing,100);
  c.window.rentData={get:()=>({status:'error',score:null})};assert.equal(vm.runInContext('ranked()[0].total',c),undefined);
 });
