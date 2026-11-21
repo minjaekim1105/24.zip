@@ -120,10 +120,23 @@ async function ensureAmenityAnalysis() {
 }
 
 const criterionAvailability={housing:true,commute:true,convenience:true};
-function priorityWeightPolicy(priority){const key=canonicalCriterion(priority);return criterionKeys.includes(key)?Object.fromEntries(criterionKeys.map(k=>[k,k===key?50:25])):null;}
+function selectedOrder(h){
+ const keys=Array.isArray(h.priorityOrder)?h.priorityOrder:[h.priority];
+ return [...new Set(keys.map(canonicalCriterion).filter(key=>criterionKeys.includes(key)&&criterionAvailability[key]))];
+}
+function rankLabels(h){
+ return selectedOrder(h).map((key,index)=>(index+1)+'순위 · '+priorities[key].label);
+}
+function priorityWeightPolicy(order){
+ if(!order.length)return null;
+ const weights=Object.fromEntries(criterionKeys.map(key=>[key,order.length===1?25:20]));
+ weights[order[0]]=50;
+ if(order.length>1)weights[order[1]]=30;
+ return weights;
+}
 function normalizeHousing(h){
- const previous=canonicalCriterion(h.priority),priority=previous&&criterionAvailability[previous]?previous:'';
- return {...h,priorities:[...criterionKeys],priority,priorityNeedsReselect:!priority&&Boolean(h.priority||h.priorityNeedsReselect)};
+ const order=selectedOrder(h);
+ return {...h,priorityOrder:order,priorities:[...criterionKeys],priority:order[0]||'',priorityNeedsReselect:!order.length&&Boolean(h.priority||h.priorityNeedsReselect)};
 }
 
 const districtMapRows = [
@@ -233,9 +246,10 @@ function ranked(housing = state.housing) {
       transport:!destination||neighborhood.count<2||!Number.isFinite(minutes)||!(Number(maxMinutes)>0)?null:bandFit(minutes/Number(maxMinutes),fitRules.time),
       daily:amenityEvaluations.get(district.id)?.score??null,culture:null
     };
-    const chosenPriority=canonicalCriterion(priority);
+    const order=selectedOrder(housing);
+    const chosenPriority=order[0];
     const priorityRequired=!chosenPriority||!criterionAvailability[chosenPriority];
-    const rawWeights=priorityWeightPolicy(chosenPriority)??{housing:0,commute:0,convenience:0};
+    const rawWeights=priorityWeightPolicy(order)??{housing:0,commute:0,convenience:0};
     const targetWeights={budget:rawWeights.housing,transport:rawWeights.commute,convenience:rawWeights.convenience};
     const seed={...district,scores,rentEvidence,minutes,neighborhood,monthlyCost,budgetFit,convenienceEvaluation:amenityEvaluations.get(district.id)};
     const evaluations=evaluationState(seed);
@@ -502,11 +516,11 @@ function updateDestinationPicker(input) {
 }
 function housingSummary(h) {
   const trip = h.trip ? tripOptions.find(([key]) => key === h.trip)[1] : '목적지 없이 추천';
-  const labels = criterionKeys.map(key=>priorities[key].label+(key===canonicalCriterion(h.priority)?' (1순위)':''));
+  const labels = rankLabels(h);
   return '<ul><li>최대 보증금 · ' + budgetDisplay(h.deposit) + '</li><li>최대 월세 · ' + budgetDisplay(h.monthly) + ' (관리비 제외)' +
     '</li><li>목적지 · ' + (h.trip ? trip + ' / ' + (escapeHtml(h.destination) || '미선택') : trip) +
     '</li><li>이동 수단 · ' + (h.destination ? travelModeLabel(h.mode) : '적용 안 함') + '</li><li>최대 이동시간 · ' + (h.trip && h.destination ? escapeHtml(h.maxMinutes) + '분' : '적용 안 함') +
-    '</li><li>1순위 조건 · ' + (canonicalCriterion(h.priority) ? priorities[canonicalCriterion(h.priority)].label : '선택 필요') + '</li><li>중요 조건 · ' + (labels.join(', ') || '기본 가중치') + '</li></ul>';
+    '</li><li>추천 우선순위' + (labels.length ? labels.map(label=>'<div>'+label+'</div>').join('') : ' · 미선택') + '</li></ul>';
 }
 
 
@@ -524,11 +538,11 @@ function readHousing(form) {
   const data = new FormData(form);
   const trip = data.get('trip');
   const chosen = [...criterionKeys];
-  const selectedPriority=canonicalCriterion(data.get('priority'));
+  const order=selectedOrder(state.housing);
   return {
     routeEnabled:data.has('routeEnabled'),deposit:data.get('deposit'), monthly:data.get('monthly'), trip,
     destination:trip ? data.get('destination') : '', destinationCoords:trip ? (form.destinationCoords ?? null) : null, destinationDetails:trip ? form.destinationDetails ?? null : null, destinationQuery:form.querySelector('#destination-search').value, mode:data.get('mode'), maxMinutes:data.get('maxMinutes'),
-    priorities:chosen, priority:criterionAvailability[selectedPriority]?selectedPriority:'',priorityNeedsReselect:!criterionAvailability[selectedPriority]&&Boolean(state.housing.priorityNeedsReselect)
+    priorities:chosen, priorityOrder:order, priority:order[0]||'',priorityNeedsReselect:!order.length&&Boolean(state.housing.priorityNeedsReselect)
   };
 }
 
@@ -538,7 +552,7 @@ function updateHousingForm(form) {
   form.querySelector('#time-field').hidden = !h.destination;
   form.querySelector('#housing-summary').innerHTML = housingSummary(h);
   state.housing=h;saveSession();
-  if(h.priority){form.querySelector('.priority-reselect-notice')?.remove();const error=form.querySelector('#error-priority');if(error)error.textContent='';form.querySelector('[role="radiogroup"][aria-label="추천 우선순위"]')?.removeAttribute('aria-invalid');}
+  if(h.priority){form.querySelector('.priority-reselect-notice')?.remove();const error=form.querySelector('#error-priority');if(error)error.textContent='';form.querySelector('[role="group"][aria-label="추천 우선순위"]')?.removeAttribute('aria-invalid');}
   const routeLabel=document.querySelector('[data-route-switch-label]');if(routeLabel)routeLabel.textContent=h.routeEnabled?'ON':'OFF';
 }
 
@@ -563,8 +577,8 @@ function validateHousing(form,h) {
     } else input.removeAttribute('aria-invalid');
   }
   const invalidPriority=!h.priority||!criterionAvailability[h.priority];
-  const priorityError=form.querySelector('#error-priority');if(priorityError)priorityError.textContent=invalidPriority?'주거비 또는 이동시간 중 추천 우선순위 하나를 선택해 주세요.':'';
-  if(invalidPriority){form.querySelector('[role="radiogroup"][aria-label="추천 우선순위"]')?.setAttribute('aria-invalid','true');firstError??=form.querySelector('[name="priority"]:not(:disabled)');}
+  const priorityError=form.querySelector('#error-priority');if(priorityError)priorityError.textContent=invalidPriority?'추천 우선순위를 한 가지 이상 선택해 주세요.':'';
+  if(invalidPriority){form.querySelector('[role="group"][aria-label="추천 우선순위"]')?.setAttribute('aria-invalid','true');firstError??=form.querySelector('[name="priority"]:not(:disabled)');}
   firstError?.focus();
   return !firstError;
 }
@@ -587,17 +601,17 @@ function imageMap(scores,picker = false) {
 function resultConditions(h) {
   const move = h.destination ? escapeHtml(h.destination) + ' · ' + travelModeLabel(h.mode) + ' · 허용 ' + h.maxMinutes + '분' : '목적지 없이 추천';
   return '<p class="result-conditions">보증금 최대 ' + money(h.deposit) + ' · 월세 최대 ' + money(h.monthly) + ' (관리비 제외)' +
-    '<br>' + move + (canonicalCriterion(h.priority)?' · 1순위 조건 '+priorities[canonicalCriterion(h.priority)].label:'') + '</p>';
+    '<br>' + move + (canonicalCriterion(h.priority)?' · '+rankLabels(h).join(' / '):'') + '</p>';
 }
 function myConditions(h,editable=false){
  if(editable)return mapConditionsDashboard(h);
- const entries=[['최대 보증금',money(h.deposit)+' 이하'],['최대 월세',money(h.monthly)+' 이하'],['이동 목적지',h.destination||'목적지 없이 추천'],['추천 우선순위',priorities[canonicalCriterion(h.priority)]?.label||'미선택']];
+ const entries=[['최대 보증금',money(h.deposit)+' 이하'],['최대 월세',money(h.monthly)+' 이하'],['이동 목적지',h.destination||'목적지 없이 추천'],['추천 우선순위',rankLabels(h).join(' / ')||'미선택']];
  if(h.destination)entries.push(['이동 조건',travelModeLabel(h.mode)+' · 허용 '+h.maxMinutes+'분']);
  return '<section class="my-conditions" aria-label="내 조건"><div class="my-conditions-heading"><h2>내 조건</h2>'+(editable?'<button type="button" class="secondary" data-go="housing">조건 수정</button>':'')+'</div><dl>'+entries.map(([label,value])=>'<div><dt>'+label+'</dt><dd>'+escapeHtml(value)+'</dd></div>').join('')+'</dl><small>월세는 관리비 제외</small></section>';
 }
 function mapConditionsDashboard(h){
- const priority=priorities[canonicalCriterion(h.priority)]?.label||'미선택';
- return '<section class="my-conditions map-conditions-dashboard" aria-label="내 조건"><div class="my-conditions-heading"><h2>내 조건</h2><button type="button" class="secondary" data-go="housing">조건 수정</button></div><dl class="map-budget-highlights"><div><dt>최대 보증금</dt><dd>'+escapeHtml(money(h.deposit))+'</dd></div><div><dt>최대 월세</dt><dd>'+escapeHtml(money(h.monthly))+'</dd></div></dl><div class="map-destination-line"><span class="map-destination-name"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-8 8-13a8 8 0 1 0-16 0c0 5 8 13 8 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>'+escapeHtml(h.destination||'목적지 없이 추천')+'</span>'+(h.destination?'<span class="map-condition-badge">'+escapeHtml(travelModeLabel(h.mode))+' · 허용 '+escapeHtml(String(h.maxMinutes))+'분</span>':'')+'</div><div class="map-priority-line"><span>추천 1순위</span><strong class="map-condition-badge">'+escapeHtml(priority)+'</strong></div><small>월세는 관리비 제외</small></section>';
+ const priority=rankLabels(h).join(' / ')||'미선택';
+ return '<section class="my-conditions map-conditions-dashboard" aria-label="내 조건"><div class="my-conditions-heading"><h2>내 조건</h2><button type="button" class="secondary" data-go="housing">조건 수정</button></div><dl class="map-budget-highlights"><div><dt>최대 보증금</dt><dd>'+escapeHtml(money(h.deposit))+'</dd></div><div><dt>최대 월세</dt><dd>'+escapeHtml(money(h.monthly))+'</dd></div></dl><div class="map-destination-line"><span class="map-destination-name"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-8 8-13a8 8 0 1 0-16 0c0 5 8 13 8 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>'+escapeHtml(h.destination||'목적지 없이 추천')+'</span>'+(h.destination?'<span class="map-condition-badge">'+escapeHtml(travelModeLabel(h.mode))+' · 허용 '+escapeHtml(String(h.maxMinutes))+'분</span>':'')+'</div><div class="map-priority-line"><span>추천 우선순위</span><strong class="map-condition-badge">'+escapeHtml(priority)+'</strong></div><small>월세는 관리비 제외</small></section>';
 }
 function shortReasons(d) {
   const h = state.housing;
@@ -878,7 +892,7 @@ function dashboardC(d){
  const cards=criterionKeys.map(key=>{
    const item=items[key],scored=Number.isFinite(item.score),label=key==='convenience'?'편의시설':priorities[key].label;
    const evidence=key==='housing'?(scored?'예산 충족 '+d.rentEvidence.count.toLocaleString('ko-KR')+' / '+d.rentEvidence.analyzedCount.toLocaleString('ko-KR')+'건':['idle','loading'].includes(item.status)?'거래 표본 조회 중…':item.status==='error'?(d.rentEvidence?.message||'거래 자료 조회 실패'):'유효 거래 자료 없음'):key==='commute'?(scored?travelModeLabel(state.housing.mode)+' · '+routeRange(d)+' · 중앙값 '+displayMinutes(d.minutes)+'분':item.details):item.details;
-   return '<article class="criterion-score-card'+(scored?'':' is-unrated')+'" data-criterion="'+key+'"><h3>'+resultIcon(icons[key])+label+'</h3><div class="criterion-score-number">'+(scored?item.score.toFixed(1):'—')+'</div><div class="criterion-score-unit">'+(scored?'/ 100점':item.status==='loading'?'조회 중':'미평가')+'</div><div class="criterion-score-meter"'+(scored?' role="meter" aria-label="'+label+' 점수" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+item.score.toFixed(1)+'"':' aria-hidden="true"')+'><span style="width:'+(scored?Math.min(100,Math.max(0,item.score)):0)+'%"></span></div><p>'+escapeHtml(evidence)+'</p>'+(key==='convenience' && item.details==='자치구별 시설 수를 조회하지 못했습니다.' ? '<button type="button" class="secondary" data-retry-amenities>편의시설 다시 조회</button>' : '')+(canonicalCriterion(state.housing.priority)===key?'<small class="criterion-first">1순위 조건</small>':'')+(key==='housing'?'<details class="housing-evidence"><summary>근거 보기</summary><p>'+escapeHtml(rentEvidenceText(d))+'</p><small>실거래 표본이며 현재 매물 수나 개별 주택 수가 아니에요.</small></details>':'')+'</article>';
+   return '<article class="criterion-score-card'+(scored?'':' is-unrated')+'" data-criterion="'+key+'"><h3>'+resultIcon(icons[key])+label+'</h3><div class="criterion-score-number">'+(scored?item.score.toFixed(1):'—')+'</div><div class="criterion-score-unit">'+(scored?'/ 100점':item.status==='loading'?'조회 중':'미평가')+'</div><div class="criterion-score-meter"'+(scored?' role="meter" aria-label="'+label+' 점수" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+item.score.toFixed(1)+'"':' aria-hidden="true"')+'><span style="width:'+(scored?Math.min(100,Math.max(0,item.score)):0)+'%"></span></div><p>'+escapeHtml(evidence)+'</p>'+(key==='convenience' && item.details==='자치구별 시설 수를 조회하지 못했습니다.' ? '<button type="button" class="secondary" data-retry-amenities>편의시설 다시 조회</button>' : '')+(selectedOrder(state.housing).includes(key)?'<small class="criterion-first">'+(selectedOrder(state.housing).indexOf(key)+1)+'순위 조건</small>':'')+(key==='housing'?'<details class="housing-evidence"><summary>근거 보기</summary><p>'+escapeHtml(rentEvidenceText(d))+'</p><small>실거래 표본이며 현재 매물 수나 개별 주택 수가 아니에요.</small></details>':'')+'</article>';
  });
  return '<section class="criteria-dashboard" aria-label="조건별 점수"><div class="criteria-dashboard-grid">'+cards.join('')+'</div><details class="weight-help"><summary>적용 가중치</summary><p>'+criterionKeys.map(k=>priorities[k].label+' '+(d.weights[k]??d.weights[legacyCriterion(k)]??0).toFixed(1)+'%').join(' · ')+'</p></details>'+departureDetails(d)+'</section>';
 }
@@ -970,8 +984,11 @@ const views = {
       '<div id="custom-time"' + (preset === 'custom' ? '' : ' hidden') + '>' +
       housingNumber('maxMinutes','최대 허용 이동시간 (분)',h.maxMinutes,'',1,'1') +
       '</div><p class="muted">예상 이동시간은 실제 경로 조회 후 추천 결과와 지도 비교에서 확인할 수 있어요.</p></div></section>' +
-      '<section class="input-card"><h2>추천 우선순위</h2><p class="muted">세 가지 조건을 모두 평가합니다. 가장 중요하게 생각하는 조건을 선택해 주세요.</p>'+(h.priorityNeedsReselect?'<p class="priority-reselect-notice" role="status">이전에 선택한 우선순위는 현재 사용할 수 없어요. 주거비 또는 이동시간을 다시 선택해 주세요.</p>':'')+'<div class="criteria-priority-options" role="radiogroup" aria-label="추천 우선순위">'+
-      criterionKeys.map(key=>'<label><input type="radio" name="priority" aria-label="'+priorities[key].label+'" value="'+key+'"'+(h.priority===key?' checked':'')+(!criterionAvailability[key]?' disabled aria-describedby="convenience-priority-hint"':'')+'><span>'+priorities[key].label+(!criterionAvailability[key]?' (준비 중)':'')+'</span></label>').join('')+
+      '<section class="input-card"><h2>추천 우선순위</h2><p class="muted">세 가지 조건을 중요하게 생각하는 순서대로 선택해 주세요. 선택한 순서에 따라 1순위, 2순위, 3순위가 지정됩니다. 선택한 항목을 다시 누르면 선택이 취소됩니다.</p>'+(h.priorityNeedsReselect?'<p class="priority-reselect-notice" role="status">이전에 선택한 우선순위는 현재 사용할 수 없어요. 추천 우선순위를 다시 선택해 주세요.</p>':'')+'<div class="criteria-priority-options" role="group" aria-label="추천 우선순위">'+
+      criterionKeys.map(key=>{
+        const rank=h.priorityOrder.indexOf(key)+1;
+        return '<label><input type="checkbox" name="priority" value="'+key+'"'+(rank?' checked':'')+'><span>'+priorities[key].label+'<small class="priority-rank">'+(rank?rank+'순위':'')+'</small></span></label>';
+      }).join('')+
       '</div><p class="field-error" id="error-priority" aria-live="polite"></p><p class="muted" id="convenience-priority-hint">생활 편의시설은 서울 25개 자치구의 시설 수 순위를 기준으로 평가합니다.</p></section></div>'+
       '<aside class="input-card input-summary"><h2>입력 조건 확인</h2><div id="housing-summary">' + housingSummary(h) +
       '</div><button type="submit">추천 결과 보기 <span aria-hidden="true">→</span></button></aside></form>';
@@ -985,7 +1002,7 @@ const views = {
       (!items.length?'<section class="panel empty-results"><h2>아직 실제 자료로 평가한 자치구가 없어요</h2><p>'+(scores.some(d=>d.rentEvidence?.status==='error')?'거래 자료 조회에 실패했어요. 조건 수정 후 다시 제출하면 재조회합니다.':'거래·경로 자료를 확인하고 있어요. 확인된 항목부터 표시합니다.')+'</p>'+nav('housing','주거 조건 수정',true)+'</section>':
         items.length<3?'<p class="result-notice">현재 평가에 필요한 자료가 확인된 '+items.length+'곳만 표시했어요. 조회가 완료된 다른 구도 비교 대상에 추가돼요.</p>':'')+
       resultExplorer(scores,items)+'<div class="actions result-tools result-bottom-tools">'+nav('map','지도에서 비교')+nav('housing','주거 조건 수정')+'</div>'+
-      '<details class="panel scoring"><summary>점수 계산 기준</summary><p>점수는 100점 만점으로 계산하고 표시합니다. 추천 순위는 반올림 전 종합점수로 정하며, 동점이면 실제 이동시간 중앙값이 짧은 구를 먼저 표시합니다.</p><p>주거비 점수 = 보증금·월세 상한을 동시에 충족한 해당 구 거래 표본 건수 ÷ 해당 구의 보증금·월세가 모두 확인되는 유효 월세 거래 표본 건수 × 100입니다. 현재 매물 수가 아닌 2026년 거래 표본이며 관리비는 제외합니다. 유효한 월세 표본이 없으면 정보 없음, 유효 표본은 있지만 예산 충족 거래가 0건이면 0점입니다. 다른 구의 건수는 점수에 영향을 주지 않습니다. 이 점수를 주거비 항목으로 종합 추천에 반영합니다.</p><p>실제 경로가 2곳 이상 조회되면 중앙값을 사용합니다. 중앙값 ÷ 허용시간이 50% 이하 100점, 70% 이하 90점, 85% 이하 80점, 100% 이하 70점, 115% 이하 50점, 130% 이하 30점, 그 이상 0점입니다. 기본 가중치는 선택한 1순위 50%, 나머지 두 항목 각각 25%입니다. 미평가 항목을 제외한 가중치를 합계 100%로 재정규화합니다. 편의시설 미평가 시 주거비 우선은 약66.7%·33.3%, 이동시간 우선은 약33.3%·66.7%입니다. 주거비·이동시간·생활 편의시설의 확인된 점수만 가중치를 재정규화해 계산합니다. 모든 항목이 미평가면 점수를 표시하지 않습니다. 생활 편의시설은 서울 25개 자치구의 편의점·대형마트·약국·병의원 수를 항목별로 순위화합니다. 항목별 배점은 25·20·25·30점입니다. 1~5위부터 5개 순위마다 배점의 100%, 80%, 60%, 40%, 20%를 적용합니다. 같은 시설 수는 공동 순위이며 0곳은 0점입니다. 조회 실패 시 미평가로 표시합니다. 평가 항목 수가 많은 구 중 같은 항목 조합을 갖춘 구끼리 임시 순위를 비교합니다. 표본 비율은 현재 매물 수나 개별 주택의 예산 충족을 보장하지 않습니다.</p></details>';
+      '<details class="panel scoring"><summary>점수 계산 기준</summary><p>점수는 100점 만점으로 계산하고 표시합니다. 추천 순위는 반올림 전 종합점수로 정하며, 동점이면 실제 이동시간 중앙값이 짧은 구를 먼저 표시합니다.</p><p>주거비 점수 = 보증금·월세 상한을 동시에 충족한 해당 구 거래 표본 건수 ÷ 해당 구의 보증금·월세가 모두 확인되는 유효 월세 거래 표본 건수 × 100입니다. 현재 매물 수가 아닌 2026년 거래 표본이며 관리비는 제외합니다. 유효한 월세 표본이 없으면 정보 없음, 유효 표본은 있지만 예산 충족 거래가 0건이면 0점입니다. 다른 구의 건수는 점수에 영향을 주지 않습니다. 이 점수를 주거비 항목으로 종합 추천에 반영합니다.</p><p>실제 경로가 2곳 이상 조회되면 중앙값을 사용합니다. 중앙값 ÷ 허용시간이 50% 이하 100점, 70% 이하 90점, 85% 이하 80점, 100% 이하 70점, 115% 이하 50점, 130% 이하 30점, 그 이상 0점입니다. 한 가지만 선택하면 1순위 50%, 나머지 각각 25%입니다. 두 가지 이상 선택하면 1순위 50%, 2순위 30%, 남은 항목 20%입니다. 미평가 항목을 제외하고 나머지 가중치의 합이 100%가 되도록 조정합니다. 모든 항목이 미평가면 점수를 표시하지 않습니다. 생활 편의시설은 서울 25개 자치구의 편의점·대형마트·약국·병의원 수를 항목별로 순위화합니다. 항목별 배점은 25·20·25·30점입니다. 1~5위부터 5개 순위마다 배점의 100%, 80%, 60%, 40%, 20%를 적용합니다. 같은 시설 수는 공동 순위이며 0곳은 0점입니다. 조회 실패 시 미평가로 표시합니다. 평가 항목 수가 많은 구 중 같은 항목 조합을 갖춘 구끼리 임시 순위를 비교합니다. 표본 비율은 현재 매물 수나 개별 주택의 예산 충족을 보장하지 않습니다.</p></details>';
   },
 
   map:() => {
@@ -1242,6 +1259,16 @@ app.addEventListener('compositionend',event=>{
 app.addEventListener('input', (event) => {
   const form = event.target.form;
   if (form?.id !== 'housing-form') return;
+  if(event.target.name==='priority'){
+    const input=event.target;
+    const order=selectedOrder(state.housing).filter(key=>key!==input.value);
+    if(input.checked)order.push(input.value);
+    state.housing.priorityOrder=order;
+    for(const option of form.querySelectorAll('[name="priority"]')){
+      const rank=order.indexOf(option.value)+1;
+      option.labels[0].querySelector('.priority-rank').textContent=rank?rank+'순위':'';
+    }
+  }
   updateDestinationPicker(event.target);
   updateHousingForm(form);
 });
