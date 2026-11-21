@@ -961,14 +961,24 @@ function mapExtraDetails(d){return '<section class="map-extra-details"><h2>'+d.n
 const views = {
 
 
-  home:() => '<section class="landing-b"><div class="landing-b-inner"><div class="landing-b-copy">' +
-    '<img class="landing-b-logo" src="logo.png?v=2" alt="24.zip">' +
-    '<h1 tabindex="-1">서울에서 살 곳을 비교하고,<br>주거지원 조건도 확인해요</h1>' +
-    '<p>예산과 이동 조건에 맞는 서울 자치구를 비교하고, 관심 있는 주거지원사업의 신청 자격을 확인해 보세요.</p>' +
-    '<div class="landing-actions"><button type="button" data-go="housing">추천 조건 입력하기　→</button>' +
-    (state.hasResults ? nav('results','내 추천 결과 보기',true) : '') + '</div>' +
-    '<a class="landing-support" href="/contract.html">이미 찾은 집의 지원 확인 →</a>' +
-    '</div><div class="landing-b-art"><img class="landing-b-image" src="landing-b-illustration.png?v=b-final" alt="남산타워 아래 서울 주택가"></div></div></section>',
+  home:() => `
+    <section class="intro-hero" aria-labelledby="intro-title">
+      <div class="intro-art" aria-hidden="true"></div>
+      <div class="intro-logo"><img src="logo.png?v=2" alt="24.zip"></div>
+      <div class="intro-copy">
+        <h1 id="intro-title" tabindex="-1">내 조건에 맞는 <em>서울 동네</em>부터,<br> 받을 수 있는 <em>주거지원</em>까지</h1>
+        <p class="intro-description">주거비, 이동시간, 생활 편의시설을 비교해 내 조건에 맞는 서울 자치구를<br> 추천받고, 관심 있는 주택의 주거지원제도도 확인해 보세요.</p>
+        <div class="intro-actions">
+          <button type="button" data-go="housing">내 조건으로 동네 찾기 <span aria-hidden="true">→</span></button>
+          <a href="/contract.html">관심 주택의 지원 확인</a>
+        </div>
+        <ul class="intro-features">
+          <li><span class="intro-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.4"/></svg></span><div><h2>지역 추천</h2><p>내 조건에 맞는<br>서울 동네를 추천해요.</p></div></li>
+          <li><span class="intro-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13"/><path d="M12 8H8a2.5 2.5 0 1 1 2.4-3.3L12 8Zm0 0h4a2.5 2.5 0 1 0-2.4-3.3L12 8Z"/></svg></span><div><h2>주거지원 확인</h2><p>관심 주택의<br>지원제도를 확인해요.</p></div></li>
+          <li><span class="intro-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-6h3v6zm6 0V8h3v10zm6 0V3h3v15z"/></svg></span><div><h2>비교 분석</h2><p>주거비, 이동시간,<br>생활 편의시설을 비교해요.</p></div></li>
+        </ul>
+      </div>
+    </section>` + (state.hasResults ? '<div class="intro-return">'+nav('results','내 추천 결과 보기',true)+'</div>' : ''),
   housing:() => {
     const h = normalizeHousing(state.housing);
     const preset = ['30','45','60'].includes(h.maxMinutes) ? h.maxMinutes : 'custom';

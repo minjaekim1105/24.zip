@@ -1053,3 +1053,52 @@ body[data-page="results"] .criterion-score-card {border-radius:15px;border-color
   .landing-b .landing-b-art img {object-fit:cover;object-position:right center}
   body[data-page="map"] .map-selection {padding:14px}
 }
+/* Service introduction */
+body[data-page="home"] main.shell { width:100%; max-width:none; padding:0; display:block; }
+.intro-hero {
+  --gutter:clamp(24px,4.25vw,88px); position:relative; isolation:isolate;
+  box-sizing:border-box; width:100%; min-height:100svh; padding:20px var(--gutter) 64px;
+  color:#0b2c55; background:#e4f0fc; word-break:keep-all;
+}
+.intro-art {
+  position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(90deg,#f0f6fcbb 0%,#f0f6fcda 35%,#f0f6fc88 43%,transparent 57%), url("landing-b-illustration.png") 89% center/cover no-repeat;
+}
+.intro-logo {width:133px; height:44px; position:relative;}
+.intro-logo img {display:block; position:absolute; width:113%; max-width:none; left:-6.8%; top:-10%; height:auto;}
+.intro-copy {max-width:700px; margin-top:clamp(82px,calc(24svh - 64px),204px);}
+.intro-copy h1 {max-width:650px; margin:0; font-size:clamp(36px,3vw,48px); line-height:1.32; letter-spacing:-1.5px; font-weight:850; color:#0b2c55;}
+.intro-copy h1 em {font:inherit;color:#0863ec;}
+.intro-copy .intro-description {max-width:650px; margin:16px 0 0; font-size:clamp(18px,1.20vw,20px); line-height:1.65; letter-spacing:-.7px;color:#153653;}
+.intro-actions {display:flex; align-items:stretch; gap:17px; margin-top:38px;}
+.intro-actions :is(button,a) {display:inline-flex; align-items:center; justify-content:center; gap:12px; box-sizing:border-box; min-height:65px; padding:12px 16px; margin:0; border:1px solid #0863ec; border-radius:16px; background:#0863ec; color:white; font:inherit; font-weight:800; font-size:clamp(18px,1.26vw,21px); text-decoration:none; box-shadow:0 4px 10px #1a4c7819; transition:background-color .16s,box-shadow .16s;}
+.intro-actions button {width:302px;}
+.intro-actions a {width:253px;background:#fcfdff;color:#1252a5;border-color:#b6d4ff;}
+.intro-actions button:hover {background:#0758cf;transform:none;}
+.intro-actions a:hover {background:#eff6ff;}
+.intro-actions :is(a,button):focus-visible {outline:3px solid #084fae;outline-offset:4px;}
+.intro-features {display:grid;grid-template-columns:31% 33.7% 1fr;gap:0;list-style:none;margin:68px 0 0;padding:0;}
+.intro-features li {display:flex;align-items:flex-start;gap:14px;min-width:0;}
+.intro-icon {width:40px;height:40px;border-radius:13px;flex:none;display:grid;place-items:center;background:#cfe7fa;color:#1352a1;}
+.intro-icon svg {width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;}
+.intro-features h2 {margin:0;font-size:20px;font-weight:800;line-height:1.35;color:#0b2c55;}
+.intro-features p {margin:10px 0 0;font-size:15.5px;line-height:1.55;color:#153653;}
+.intro-return {padding:16px clamp(24px,4.25vw,88px);}
+@media (min-width:768px) and (max-width:1279px) {
+  .intro-copy {max-width:min(700px,90vw);}
+  .intro-art {background-image:linear-gradient(90deg,#f0f6fcf5 0%,#f0f6fcd9 45%,transparent 85%),url("landing-b-illustration.png");background-position:75% center;}
+}
+@media (max-width:767px) {
+  .intro-hero {--gutter:clamp(20px,5.5vw,24px);display:flex;flex-direction:column;padding:20px var(--gutter) 0;}
+  .intro-logo {width:120px;height:40px;}
+  .intro-copy {margin-top:44px;max-width:100%;}
+  .intro-copy h1 {font-size:clamp(29px,7.7vw,34px);letter-spacing:-1px;}
+  .intro-copy h1 br,.intro-description br {display:none;}
+  .intro-copy .intro-description {font-size:17px;margin-top:20px;}
+  .intro-actions {flex-direction:column;gap:12px;margin-top:28px;}
+  .intro-actions :is(button,a) {width:100%;min-height:54px;}
+  .intro-features {grid-template-columns:1fr;gap:24px;margin-top:36px;}
+  .intro-features h2 {font-size:18px;}
+  .intro-features p {margin-top:6px;}
+  .intro-art {order:1;position:relative;inset:auto;z-index:0;flex:1 0 auto;min-height:210px;aspect-ratio:1.85;margin:14px calc(0px - var(--gutter)) 0;background:linear-gradient(180deg,#e4f0fc,transparent 40%),url("landing-b-illustration.png") right bottom/cover no-repeat;}
+}
