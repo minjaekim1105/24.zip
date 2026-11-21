@@ -1,0 +1,8 @@
+24.zip project
+1. Install Node.js.
+2. Copy .env.example to .env.local and supply your own keys.
+3. Run: node server.cjs
+4. Open http://localhost:8080
+Credentials, deployment caches and local logs are intentionally excluded.
+
+Bus stop location API: Set SEOUL_API_KEY in .env.local (local) or Vercel Environment Variables (production). On the comparison map, select a destination and click "주변 버스정류장 보기". API endpoint: /api/bus-stops?lat=37.518944&lng=127.084778&radius=800.

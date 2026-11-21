@@ -1,0 +1,13 @@
+.env
+.env.*
+.git
+.openai
+.vercel
+node_modules
+kakao-route-verification.json
+server.cjs
+*.md
+
+.vercel-upload/
+
+dist/map-config.js

@@ -1,0 +1,16 @@
+.live-input-summary {font-size:14px;line-height:1.8;color:#405b7a;margin:14px 0}
+.live-query {width:100%;margin:10px 0;color:#fff;background:#153d65;border:0;min-height:44px;font-size:13px}
+button:disabled {cursor:default;opacity:.6}
+.live-error {background:#fff1f1;color:#9e3535;border-radius:10px;padding:12px;font-size:14px}
+.live-departures {margin:12px 0;border:1px solid #dae6f4;border-radius:9px;background:#f6faff;padding:10px;font-size:12px}
+.live-departures summary {cursor:pointer;font-weight:800;min-height:32px;display:flex;align-items:center;color:#204f7f}
+.live-departures p {font-size:12px;line-height:1.65}
+.live-origin {display:grid;gap:4px;padding:10px 0;border-top:1px solid #dce6f1;overflow-wrap:anywhere}
+.live-origin>b {font-size:15px;color:#183b63}
+.live-origin>small {font-size:12px;color:#586f8b;line-height:1.65}
+.stat>b {overflow-wrap:anywhere;min-width:0;text-align:right}
+.reco-body {min-width:0}
+.reco .reasons {font-size:12px;line-height:1.7}
+@media(max-width:760px){.live-input-summary {font-size:13px}.stat {gap:8px;align-items:flex-start}.stat>b {max-width:65%}.actions .btn {min-height:44px}.live-query {min-height:44px}}
+@media(max-width:520px){.actions{display:flex;flex-direction:column}.actions .btn{width:100%;flex:none;white-space:normal;line-height:1.5;padding:12px 16px}}
+

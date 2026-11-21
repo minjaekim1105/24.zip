@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "framework": null,
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/map-config.js",
+      "destination": "/api/map-config"
+    }
+  ],
+  "functions": {
+    "api/route.js": {
+      "maxDuration": 60
+    },
+    "api/rent/analyze.js": {
+      "maxDuration": 60
+    },
+    "api/district-amenities.js": {
+      "maxDuration": 300
+    },
+    "api/scorecard.js": {
+      "includeFiles": "data/scorecard.sqlite"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ],
+  "regions": [
+    "icn1"
+  ]
+}

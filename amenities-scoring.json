@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "provider": "Kakao Local",
+  "radiusMeters": 500,
+  "center": "district-reference-station",
+  "categories": [
+    {
+      "code": "CS2",
+      "label": "편의점"
+    },
+    {
+      "code": "MT1",
+      "label": "대형마트"
+    },
+    {
+      "code": "PM9",
+      "label": "약국"
+    },
+    {
+      "code": "HP8",
+      "label": "병원"
+    }
+  ],
+  "onLookupFailure": "unrated",
+  "aggregation": "sum",
+  "maxScore": 100,
+  "pointsPerFacility": 5,
+  "maxCountPerCategory": 5
+}
