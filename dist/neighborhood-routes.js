@@ -38,6 +38,10 @@ window.neighborhoodRoutes = (() => {
       if(old[index]?.status==='registered')return old[index];
       const station=Boolean(stationOrigins[district.id]);
       const base={id:district.id+(station?'-station-':'-')+index,name};
+      const origin=station&&window.seoulStationOrigins?.[name];
+      if(Number.isFinite(origin?.lat)&&Number.isFinite(origin?.lng)){
+        return {...base,lat:origin.lat,lng:origin.lng,locationName:name+' '+origin.line,source:'서울시 역사마스터 정보',status:'registered'};
+      }
       try{
         const matches=await window.realMaps.search(query);
         const match=matches.find(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.address.includes(district.name)&&(station?p.name.trim().split(/\s+/)[0]===name:/아파트|푸르지오|래미안|자이|힐스테이트|캐슬|e편한/i.test(p.name)));
