@@ -27,7 +27,7 @@ window.realMaps = (() => {
       const maps = await sdk();
       if (!node.isConnected) return;
       const map = new maps.Map(node,{center:new maps.LatLng(37.54,126.99),level:8});
-      status.textContent = options.pick ? '지도를 클릭하고 이 위치로 선택을 눌러 주세요.' : '현재 평가 점수 · 100점 만점 · 부분 평가는 임시 점수';
+      status.textContent = options.pick ? '지도에서 위치를 누른 뒤 선택 완료를 눌러 주세요.' : '현재 평가 점수 · 100점 만점 · 부분 평가는 임시 점수';
       if (options.pick) {
         let pin = new maps.Marker({map});
         let generation = 0;

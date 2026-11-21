@@ -366,7 +366,6 @@ function comparisonTable(districts) {
     rows.map(([label,content]) => '<tr><th scope="row">' + label + '</th>' +
       districts.map((d) => '<td>' + content(d) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
 }
-const tripOptions = [['','목적지 없이 추천받기'],['work','통근'],['school','통학']];
 const availablePriorities = () => criterionKeys;
 const firstPriority = (keys,current) => keys.includes(current) ? current : '';
 const priorityOptions = (keys) => [['','1순위 조건 선택'],...keys.map((key) => [key,priorities[key].label])];
@@ -396,9 +395,17 @@ function radioGroup(name,label,value,options) {
       (key === value ? ' checked' : '') + '><span>' + text + '</span></label>').join('') + '</div></fieldset>';
 }
 
-function destinationCard(place) {
-  return place?.name ? '<strong>선택한 목적지 · '+escapeHtml(place.name)+'</strong>'+
-    (place.address?'<small>'+escapeHtml(place.address)+'</small>':'') : '목적지를 선택해 주세요.';
+const destinationIcon='<svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+function validDestination(place){
+ return Boolean(place?.name && Number.isFinite(place.lat) && Number.isFinite(place.lng) && Math.abs(place.lat)<=90 && Math.abs(place.lng)<=180);
+}
+function setCandidate(editor,place){
+ editor.candidate=validDestination(place)?place:null;
+ editor.querySelector('[data-candidate]').textContent=editor.candidate?.name||'미선택';
+ editor.querySelector('[data-finish]').disabled=!editor.candidate;
+ for(const button of editor.querySelectorAll('[data-search-index]')){
+   button.setAttribute('aria-pressed',String(editor.searchItems[Number(button.dataset.searchIndex)]===editor.candidate));
+ }
 }
 function invalidateSearch(form) {
   clearTimeout(form.searchTimer);
@@ -417,44 +424,89 @@ function queueDestinationSearch(form,input) {
       const items=await window.realMaps.search(query);
       if(!form.isConnected||form.composing||generation!==form.searchGeneration)return;
       form.searchItems=items;
-      output.innerHTML=items.length?'<ul>'+items.map((p,i)=>'<li><button type="button" class="secondary" data-search-index="'+i+'"><strong>'+escapeHtml(p.name)+'</strong><small>'+escapeHtml(p.address||'주소 정보 없음')+'</small></button></li>').join('')+'</ul>':'<p role="status">검색 결과가 없어요. 주소나 장소명을 바꿔 보세요.</p>';
+      output.innerHTML=items.length?'<p>검색 결과 (총 '+items.length+'건)</p><ul>'+items.map((p,i)=>'<li><button type="button" class="secondary" data-search-index="'+i+'" aria-pressed="false">'+destinationIcon+'<span><strong>'+escapeHtml(p.name)+'</strong><small>'+escapeHtml(p.address||'주소 정보 없음')+'</small></span></button></li>').join('')+'</ul>':'<p role="status">검색 결과가 없어요. 주소나 장소명을 바꿔 보세요.</p>';
     }catch(error){
       if(form.isConnected&&generation===form.searchGeneration)output.innerHTML='<p role="alert">'+escapeHtml(error.message)+'</p>';
     }
   },350);
 }
-function destinationPicker(h) {
-  return '<div id="destination-fields"' + (h.trip ? '' : ' hidden') + '>' +
-    '<div id="destination-editor">' +
-    radioGroup('destinationMethod','목적지 찾는 방법','search',destinationMethods) +
-    '<div data-picker="search"><label for="destination-search">주소·건물명·지하철역 검색</label>' +
-    '<input type="search" id="destination-search" value="' + escapeHtml(h.destinationQuery ?? h.destination) + '" placeholder="갈 곳의 주소·건물명·역 이름을 입력하세요">' +
-    '<div class="destination-results" id="destination-results" aria-live="polite"></div></div>' +
-    '<div data-picker="station" hidden><p class="muted">구·역 목록 · 예시 데이터</p>' + selectField('destinationDistrict','자치구','',districtOptions) +
-    selectField('destinationStation','지하철역','',[['','구를 먼저 선택해 주세요']]) + '<p id="station-search-status" role="status" aria-live="polite"></p></div>' +
-    '<div data-picker="pin" hidden><p class="muted">지도에서 위치를 누른 뒤 목적지로 확정해 주세요.</p>' +
-    '<div id="destination-kakao-map" class="real-map" aria-label="목적지 선택 지도"></div><p class="map-status" role="status"></p>' + '<p id="pin-status" aria-live="polite">선택한 위치가 없어요.</p>' +
-    '<button type="button" class="secondary" data-confirm-pin disabled>이 위치로 선택</button></div>' +
-    '</div><input type="hidden" name="destination" value="' + escapeHtml(h.destination) + '">' +
-    '<p id="destination-confirmed" aria-live="polite">' + destinationCard(h.destinationDetails ?? {name:h.destination}) + '</p>' +
-    '<button type="button" class="secondary" data-change-destination>변경</button><p class="field-error" id="error-destination" aria-live="polite"></p></div>';
+function destinationPicker(h){
+ const chosen=Boolean(h.destination);
+ return '<fieldset class="dest-choice"><legend>목적지</legend><div><button type="button" data-open-destination aria-haspopup="dialog" aria-pressed="'+chosen+'">'+destinationIcon+' 목적지 선택</button><button type="button" data-no-destination aria-pressed="'+!chosen+'">목적지 없음</button></div></fieldset>'+
+ '<input type="hidden" name="destination" value="'+escapeHtml(h.destination||'')+'"><div id="destination-fields"'+(chosen?'':' hidden')+'><strong>선택한 목적지</strong><div class="dest-confirmed">'+destinationIcon+'<b id="destination-confirmed">'+escapeHtml(h.destination||'')+'</b><button type="button" class="secondary" data-change-destination aria-haspopup="dialog">변경하기</button></div></div><p class="field-error" id="error-destination"></p>';
 }
-
-function confirmDestination(form,name,coords = null,address = '',source = 'example') {
-  invalidateSearch(form);
-  form.destinationCoords = coords;
-  form.destinationDetails = name ? {name,address,lat:coords?.lat??null,lng:coords?.lng??null,source} : null;
-  form.pendingPin = null;
-  form.elements.namedItem('destination').value = name;
-  form.querySelector('#destination-search').value = name;
-  form.querySelector('#destination-confirmed').innerHTML = destinationCard(form.destinationDetails);
-  form.querySelector('#destination-results').innerHTML = '';
-  if(coords) form.mapController?.setDestination?.(coords);
-  form.querySelector('#error-destination').textContent = '';
-  form.querySelector('#destination-editor').hidden = Boolean(name);
-  updateHousingForm(form);
+function confirmDestination(form,place){
+ const chosen=validDestination(place);
+ const name=chosen?place.name:'';
+ form.destinationCoords=chosen?{lat:place.lat,lng:place.lng}:null;
+ form.destinationDetails=chosen?{name,address:place.address||'',...form.destinationCoords,source:place.source}:null;
+ form.elements.namedItem('destination').value=name;
+ form.querySelector('#destination-confirmed').textContent=name;
+ form.querySelector('[data-open-destination]').setAttribute('aria-pressed',String(chosen));
+ form.querySelector('[data-no-destination]').setAttribute('aria-pressed',String(!chosen));
+ updateHousingForm(form);
 }
-
+function openDestinationDialog(opener){
+ const housingForm=opener.form;
+ const dialog=document.createElement('dialog');
+ dialog.className='dest-dialog';
+ dialog.setAttribute('aria-labelledby','dest-dialog-title');
+ dialog.innerHTML='<form class="dest-editor"><div class="dest-head"><span>'+destinationIcon+'</span><h2 id="dest-dialog-title">목적지 선택</h2><button type="button" data-close aria-label="닫기">×</button></div>'+
+ '<div class="dest-body">'+radioGroup('destinationMethod','목적지 찾는 방법','search',destinationMethods)+
+ '<section data-picker="search"><label class="dest-search"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><input type="search" autofocus aria-label="주소·건물명·역 검색" id="destination-search" placeholder="예) 서울역, 강남구청, 홍익대학교"></label><div id="destination-results" class="destination-results" aria-live="polite"></div></section>'+
+ '<section data-picker="station" hidden>'+selectField('destinationDistrict','자치구','',districtOptions)+selectField('destinationStation','지하철역','',[['','구를 먼저 선택해 주세요']])+'<p id="station-search-status" role="status"></p></section>'+
+ '<section data-picker="pin" hidden></section></div>'+
+ '<div class="dest-foot"><p aria-live="polite">선택된 목적지 · <strong data-candidate></strong></p><div><button type="button" class="secondary" data-clear>목적지 없음</button><button type="button" data-finish>선택 완료 →</button></div></div></form>';
+ document.body.append(dialog);
+ const editor=dialog.querySelector('form');
+ const input=editor.querySelector('#destination-search');
+ const pinPanel=editor.querySelector('[data-picker="pin"]');
+ const committed={...housingForm.destinationDetails,...housingForm.destinationCoords,name:housingForm.elements.destination.value};
+ setCandidate(editor,committed);
+ function close(){
+   invalidateSearch(editor);
+   dialog.close();dialog.remove();
+   (opener.closest('[hidden]')?housingForm.querySelector('[data-open-destination]'):opener).focus();
+ }
+ dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+ editor.addEventListener('submit',event=>event.preventDefault());
+ editor.addEventListener('keydown',event=>{
+   if(event.key==='Escape' && !event.isComposing){event.preventDefault();close();return;}
+   if(event.target===input && !event.isComposing && ['Enter','ArrowDown'].includes(event.key)){
+     event.preventDefault();editor.querySelector('[data-search-index]')?.focus();
+   }
+ });
+ input.addEventListener('compositionstart',()=>{editor.composing=true;invalidateSearch(editor);});
+ input.addEventListener('compositionend',()=>{editor.composing=false;queueDestinationSearch(editor,input);});
+ input.addEventListener('input',()=>{setCandidate(editor,null);queueDestinationSearch(editor,input);});
+ editor.addEventListener('change',event=>{
+   const field=event.target;
+   if(!field.name)return;
+   invalidateSearch(editor);
+   if(field.name==='destinationMethod'){
+     for(const panel of editor.querySelectorAll('[data-picker]'))panel.hidden=panel.dataset.picker!==field.value;
+     pinPanel.replaceChildren();
+     if(field.value==='pin')mountDestinationMap(editor,committed);
+     if(field.value==='search'){queueDestinationSearch(editor,input);input.focus();}
+     if(field.value==='station')selectDestinationStation(editor,editor.elements.destinationStation.value);
+   }
+   if(field.name==='destinationDistrict'){
+     editor.elements.destinationStation.replaceChildren(new Option('역 선택',''),...(districtStations[field.value]||[]).map(name=>new Option(name,name)));
+     editor.querySelector('#station-search-status').textContent='';
+     setCandidate(editor,null);
+   }
+   if(field.name==='destinationStation')selectDestinationStation(editor,field.value);
+ });
+ editor.addEventListener('click',event=>{
+   const button=event.target.closest('button');
+   if(!button)return;
+   if(button.hasAttribute('data-close'))close();
+   if(button.hasAttribute('data-clear')){confirmDestination(housingForm,null);close();}
+   if(button.hasAttribute('data-finish')&&validDestination(editor.candidate)){confirmDestination(housingForm,editor.candidate);close();}
+   if(button.hasAttribute('data-search-index'))setCandidate(editor,editor.searchItems[Number(button.dataset.searchIndex)]);
+ });
+ dialog.showModal();input.focus();
+}
 
 function findStationPlace(items,station,districtName) {
   return items.find(place=>{
@@ -467,7 +519,7 @@ function findStationPlace(items,station,districtName) {
 async function selectDestinationStation(form,station) {
   const districtId=form.elements.namedItem('destinationDistrict').value;
   const district=districts.find(d=>d.id===districtId);
-  confirmDestination(form,'');
+  setCandidate(form,null);
   const generation=form.searchGeneration;
   const status=form.querySelector('#station-search-status');
   if(!station){status.textContent='역을 선택해 주세요.';return;}
@@ -481,45 +533,25 @@ async function selectDestinationStation(form,station) {
     if(!current())return;
     const place=findStationPlace(items,station,district.name);
     if(!place){status.textContent='선택한 '+district.name+'에서 '+station+'과 일치하는 역 좌표를 찾지 못했어요. 주소·역 검색이나 지도에서 선택해 주세요.';return;}
-    confirmDestination(form,station,{lat:place.lat,lng:place.lng},place.address,'kakao-station');
+    setCandidate(form,{...place,name:station,source:'kakao-station'});
     status.textContent=station+' 위치·주소 확인 완료';
   }catch(error){
     if(current())status.textContent='역 위치 조회 실패 · '+error.message;
   }
 }
 
-function updateDestinationPicker(input) {
-  const form = input.form;
-  if(input.name === 'trip' && !input.value) invalidateSearch(form);
-  if (input.id === 'destination-search') {
-    queueDestinationSearch(form,input);
-
-  }
-  if (input.name === 'destinationMethod') {
-    invalidateSearch(form);
-    for (const panel of form.querySelectorAll('[data-picker]')) panel.hidden = panel.dataset.picker !== input.value;
-    if (input.value === 'pin') mountDestinationMap(form);
-
-  }
-
-  if (input.name === 'timePreset') {
-    if (input.value !== 'custom') form.elements.namedItem('maxMinutes').value = input.value;
-    form.querySelector('#custom-time').hidden = input.value !== 'custom';
-  }
-  if (input.name === 'destinationDistrict') {
-    const station = form.elements.namedItem('destinationStation');
-    station.replaceChildren(new Option('역 선택',''),...(districtStations[input.value] ?? []).map((name) => new Option(name,name)));
-    confirmDestination(form,'');
-    form.querySelector('#station-search-status').textContent='';
-  }
-  if (input.name === 'destinationStation') selectDestinationStation(form,input.value);
+function updateTimePreset(input){
+ if(input.name!=='timePreset')return;
+ const form=input.form;
+ if(input.value!=='custom')form.elements.maxMinutes.value=input.value;
+ form.querySelector('#custom-time').hidden=input.value!=='custom';
 }
 function housingSummary(h) {
-  const trip = h.trip ? tripOptions.find(([key]) => key === h.trip)[1] : '목적지 없이 추천';
+
   const labels = rankLabels(h);
   return '<ul><li>최대 보증금 · ' + budgetDisplay(h.deposit) + '</li><li>최대 월세 · ' + budgetDisplay(h.monthly) + ' (관리비 제외)' +
-    '</li><li>목적지 · ' + (h.trip ? trip + ' / ' + (escapeHtml(h.destination) || '미선택') : trip) +
-    '</li><li>이동 수단 · ' + (h.destination ? travelModeLabel(h.mode) : '적용 안 함') + '</li><li>최대 이동시간 · ' + (h.trip && h.destination ? escapeHtml(h.maxMinutes) + '분' : '적용 안 함') +
+    '</li><li>목적지 · ' + (escapeHtml(h.destination)||'목적지 없이 추천') +
+    '</li><li>이동 수단 · ' + (h.destination ? travelModeLabel(h.mode) : '적용 안 함') + '</li><li>최대 이동시간 · ' + (h.destination ? escapeHtml(h.maxMinutes) + '분' : '적용 안 함') +
     '</li><li>추천 우선순위' + (labels.length ? labels.map(label=>'<div>'+label+'</div>').join('') : ' · 미선택') + '</li></ul>';
 }
 
@@ -536,12 +568,12 @@ function housingNumber(name,label,value,hint = '',min = 0,step = 'any') {
 
 function readHousing(form) {
   const data = new FormData(form);
-  const trip = data.get('trip');
+  const trip = data.get('destination') ? (state.housing.trip||'work') : '';
   const chosen = [...criterionKeys];
   const order=selectedOrder(state.housing);
   return {
     routeEnabled:data.has('routeEnabled'),deposit:data.get('deposit'), monthly:data.get('monthly'), trip,
-    destination:trip ? data.get('destination') : '', destinationCoords:trip ? (form.destinationCoords ?? null) : null, destinationDetails:trip ? form.destinationDetails ?? null : null, destinationQuery:form.querySelector('#destination-search').value, mode:data.get('mode'), maxMinutes:data.get('maxMinutes'),
+    destination:trip ? data.get('destination') : '', destinationCoords:trip ? (form.destinationCoords ?? null) : null, destinationDetails:trip ? form.destinationDetails ?? null : null, destinationQuery:data.get('destination')||'', mode:data.get('mode'), maxMinutes:data.get('maxMinutes'),
     priorities:chosen, priorityOrder:order, priority:order[0]||'',priorityNeedsReselect:!order.length&&Boolean(state.housing.priorityNeedsReselect)
   };
 }
@@ -571,8 +603,7 @@ function validateHousing(form,h) {
     form.querySelector('#error-' + name).textContent = invalid ? message : '';
     if (invalid) {
       input.setAttribute('aria-invalid','true');
-      firstError ??= name === 'destination' ? form.querySelector('#destination-search') : input;
-      if (name === 'destination') form.querySelector('#destination-editor').hidden = false;
+      firstError ??= name === 'destination' ? form.querySelector('[data-open-destination]') : input;
       if (name === 'maxMinutes') form.querySelector('#custom-time').hidden = false;
     } else input.removeAttribute('aria-invalid');
   }
@@ -987,7 +1018,7 @@ const views = {
       '<section class="input-card"><h2>예산</h2><div class="budget-grid">' +
       housingNumber('deposit','최대 보증금',h.deposit) +
       housingNumber('monthly','최대 월세',h.monthly,'월세만 입력해 주세요. 관리비는 포함하지 않아요. 서울시 전월세 거래 자료에는 관리비가 제공되지 않습니다.') + '</div></section>' +
-      '<section class="input-card"><h2>이동</h2>' + radioGroup('trip','이동 목적',h.trip,[['work','통근'],['school','통학'],['','목적지 없음']]) +
+      '<section class="input-card"><h2>이동</h2>' +
       destinationPicker(h) + '<div id="time-field"' + (h.destination ? '' : ' hidden') + '>' +
       radioGroup('mode','이동 수단',h.mode,travelModes) +
       radioGroup('timePreset','최대 허용 이동시간',preset,[['30','30분'],['45','45분'],['60','60분'],['custom','직접 입력']]) +
@@ -1071,23 +1102,14 @@ function assess(project, answers) {
 }
 
 
-function mountDestinationMap(form) {
-  const node=form.querySelector('#destination-kakao-map');
-
-  if(form.mapController) {
-    form.mapController.relayout();
-    if(form.destinationCoords) form.mapController.setDestination(form.destinationCoords);
-    return;
-  }
-  if(node.dataset.mounted)return;
-  node.dataset.mounted='true';
-  window.realMaps.mount(node,{pick:true,coords:form.destinationCoords,onPick(coords,name,address){
-    form.pendingPin={coords,name,address};
-    form.querySelector('#pin-status').textContent=name+' · '+coords.lat.toFixed(5)+', '+coords.lng.toFixed(5);
-    const confirm=form.querySelector('[data-confirm-pin]');
-    confirm.disabled=false;
-    confirm.dataset.confirmPin='selected';
-  }}).then(controller=>{form.mapController=controller;if(!controller)delete node.dataset.mounted;});
+function mountDestinationMap(editor,committed){
+ const panel=editor.querySelector('[data-picker="pin"]');
+ panel.innerHTML='<div id="destination-kakao-map" class="real-map" aria-label="목적지 선택 지도"></div><p class="map-status" role="status"></p>';
+ const node=panel.firstElementChild;
+ const place=editor.candidate||committed;
+ window.realMaps.mount(node,{pick:true,coords:validDestination(place)?place:null,onPick(coords,name,address){
+   if(node.isConnected)setCandidate(editor,{...coords,name,address,source:'map'});
+ }});
 }
 const app = document.querySelector('#app');
 app.addEventListener('toggle', (event) => {
@@ -1106,6 +1128,9 @@ function restoreSession(){
     if(!saved||!views[saved.page])return;
     delete saved.answers;delete saved.result;Object.assign(state,saved);if(!state.hasResults && ['results','map'].includes(saved.page))state.hasResults=true;
     state.housing=normalizeHousing({...state.housing,priorities:state.housing.priorities??[]});
+    if(!validDestination({name:state.housing.destination,...state.housing.destinationCoords})){
+      Object.assign(state.housing,{trip:'',destination:'',destinationCoords:null,destinationDetails:null,destinationQuery:''});
+    }
     if(!state.housing.priority&&['results','map'].includes(state.page)){state.housing.priorityNeedsReselect=true;state.page='housing';}
     if(['qualify','decision','help'].includes(state.page)&&(!projects[state.project]||!districts.some(d=>d.id===state.district)))state.page='results';
     if(state.page==='decision'&&!state.result)state.page='qualify';
@@ -1171,7 +1196,6 @@ function render(page, focus = true, goingBack = false) {
     const form = app.querySelector('#housing-form');
     form.destinationCoords = state.housing.destinationCoords;
     form.destinationDetails = state.housing.destinationDetails;
-    form.querySelector('#destination-editor').hidden = Boolean(state.housing.destination);
   }
   if(!focus&&activeId){const restored=document.getElementById(activeId);if(restored){const focusTarget=restored.disabled?restored.closest('.score-comparison-item,.fact-box'):restored;focusTarget?.focus({preventScroll:true});}}
   if (focus) {
@@ -1197,28 +1221,8 @@ document.addEventListener('click', (event) => {
   if(button.dataset.routeQuery){loadNeighborhoodRoutes(button.dataset.routeQuery,'routeRetry' in button.dataset);return;}
 
 
-  if ('changeDestination' in button.dataset) {
-    button.form.querySelector('#destination-editor').hidden = false;
-    button.form.querySelector('#destination-search').focus();
-  }
-
-  if (button.dataset.searchIndex !== undefined) {
-    const place=button.form.searchItems?.[Number(button.dataset.searchIndex)];
-    if(place) confirmDestination(button.form,place.name,{lat:place.lat,lng:place.lng},place.address,'kakao');
-  }
-  if (button.dataset.pin) {
-    const form = button.form;
-    for (const marker of form.querySelectorAll('[data-pin]')) marker.setAttribute('aria-pressed',String(marker === button));
-    form.pendingPin = {name:button.dataset.pin,coords:null};
-    const confirm = form.querySelector('[data-confirm-pin]');
-    confirm.dataset.confirmPin = button.dataset.pin;
-    confirm.disabled = false;
-    form.querySelector('#pin-status').textContent = '핀 · ' + button.dataset.pin + ' (예시)';
-  }
-  if (button.dataset.confirmPin && button.form.pendingPin) {
-    const {coords,name,address} = button.form.pendingPin;
-    confirmDestination(button.form,name,coords,address,'map');
-  }
+  if ('changeDestination' in button.dataset || 'openDestination' in button.dataset){openDestinationDialog(button);return;}
+  if ('noDestination' in button.dataset){confirmDestination(button.form,null);return;}
   if (button.dataset.go) {
     if(button.dataset.go==='map' && state.page==='results')state.mapDistrict=state.resultDistrictId;
     if(button.dataset.go==='results' && state.page==='map' && state.mapDistrict){
@@ -1258,14 +1262,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-app.addEventListener('compositionstart',event=>{
-  if(event.target.id!=='destination-search')return;
-  event.target.form.composing=true;invalidateSearch(event.target.form);
-});
-app.addEventListener('compositionend',event=>{
-  if(event.target.id!=='destination-search')return;
-  event.target.form.composing=false;queueDestinationSearch(event.target.form,event.target);
-});
+
 app.addEventListener('input', (event) => {
   const form = event.target.form;
   if (form?.id !== 'housing-form') return;
@@ -1279,20 +1276,8 @@ app.addEventListener('input', (event) => {
       option.labels[0].querySelector('.priority-rank').textContent=rank?rank+'순위':'';
     }
   }
-  updateDestinationPicker(event.target);
+  updateTimePreset(event.target);
   updateHousingForm(form);
-});
-
-app.addEventListener('keydown', (event) => {
-
-  if(event.isComposing)return;
-  if(event.key==='Enter'&&event.target.id==='destination-search') {
-    event.preventDefault();event.target.form.querySelector('[data-search-index]')?.focus();
-  }
-  if(event.key==='ArrowDown'&&event.target.id==='destination-search') {
-    event.preventDefault();event.target.form.querySelector('[data-search-index]')?.focus();
-  }
-
 });
 
 
